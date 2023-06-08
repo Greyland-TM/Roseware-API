@@ -1,0 +1,37 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+djangorestframework = "*"
+pylint-django = "*"
+django = "*"
+djangorestframework-simplejwt = "*"
+install = "*"
+django-cors-headers = "*"
+facebook-business = "*"
+django-environ = "*"
+psycopg2-binary = "*"
+celery = "*"
+python-dotenv = "*"
+openai = "*"
+requests = "*"
+django-celery-results = "*"
+django-phonenumber-field = {extras = ["phonenumberslite"], version = "*"}
+python-dateutil = "*"
+monday = "*"
+stripe = "*"
+django-rest-knox = "*"
+pipreqs = "*"
+gunicorn = "*"
+dj-database-url = "*"
+pip = "*"
+whitenoise = "*"
+
+[dev-packages]
+flake8 = "*"
+black = "*"
+
+[requires]
+python_version = "*"
