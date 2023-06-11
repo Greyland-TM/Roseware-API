@@ -17,9 +17,7 @@ class LoginAPIView(generics.GenericAPIView):
 
     def post(self, request):
         try:
-            print('Logging in...')
             serializer = self.get_serializer(data=request.data)
-            print('serializer: ', serializer)
             serializer.is_valid(raise_exception=True)
             user = serializer.validated_data
             return Response(
@@ -45,14 +43,6 @@ class CreateCustomerAPIView(APIView):
     def post(self, request):
         """Create a new customer"""
         try:
-            # # Employees only
-            # user = request.user
-            # if not hasattr(user, 'employee') or not user.employee:
-            #     return Response(
-            #         {"ok": False, "error": "Not Authorized"},
-            #         status=status.HTTP_401_UNAUTHORIZED
-            #     )
-
             # Make sure the request has a first_name, last_name, email and phone
             required_fields = ["first_name", "last_name", "email", "phone"]
             missing_fields = [field for field in required_fields if field not in request.data]
@@ -112,7 +102,6 @@ class CustomerAPIView(APIView):
         """Get a customer by pk"""
 
         try:
-            print('GETTING CUSTOMER...')
             # Check if the user has an employee attribute before trying to access it
             user = request.user
             if not hasattr(user, 'employee') or not user.employee:
@@ -126,7 +115,6 @@ class CustomerAPIView(APIView):
                     )
 
             # Get the customer
-            print('try and get customer now...')
             customer_pk = request.GET["pk"]
             if not customer_pk:
                 customer_pk = customer.pk

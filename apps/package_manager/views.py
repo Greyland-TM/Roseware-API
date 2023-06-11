@@ -418,7 +418,6 @@ class ProfilePackage(APIView):
         """Post request for making a new add"""
         packages = request.data["packages"]
         customer_pk = request.data["customer_pk"]
-        print(packages, customer_pk)
         try:
             customer = Customer.objects.get(pk=customer_pk)
             new_package_plan = PackagePlan(
@@ -429,9 +428,7 @@ class ProfilePackage(APIView):
                 billing_cycle="Subscription",
             )
             new_package_plan.save()
-            print("new_package_plan: ", new_package_plan)
             for package in packages:
-                print("package: ", package)
                 package_template = ServicePackageTemplate.objects.filter(related_app=package["related_app"], type=package["type"])
 
                 new_service_package = ServicePackage(
