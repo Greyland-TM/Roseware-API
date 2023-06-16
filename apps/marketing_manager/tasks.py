@@ -1,16 +1,19 @@
 from roseware.celery import app
 from apps.accounts.models import Customer
-from apps.package_manager.models import PackagePlan
+from apps.package_manager.models import ServicePackage
+from .models import DailyContent
 from apps.marketing_manager.utils import create_monthly_marketing_schedule
 
 
 @app.task
-def send_daily_posts():
+def generate_monthly_marketing_schedules():
     try:
         #  Get all package plans that are marketing, and create a monthly marketing schedule for each
-        package_plans = PackagePlan.objects.filter(type='marketing')
-        for plan in package_plans:
-            monthly_marketing_schedule = create_monthly_marketing_schedule(plan.customer)
+        service_packages = ServicePackage.objects.filter(type='Social')
+        print(f"Found {len(service_packages)} marketing packages")
+        for package in service_packages:
+            print('Creating monthly marketing schedule for customer: ', package.customer)
+            monthly_marketing_schedule = create_monthly_marketing_schedule(package.customer)
 
         if monthly_marketing_schedule:
             print("Monthly Marketing Schedule Created")
