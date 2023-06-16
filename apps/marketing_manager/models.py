@@ -1,14 +1,27 @@
 from django.db import models
 import datetime
-from apps.accounts.models import Customer
+
+class Day(models.Model):
+    """ This represents a day of the week, for a customers day selections """
+
+    name = models.CharField(max_length=20, unique=True)
+    index = models.IntegerField()
+    customer = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, null=True)
+
+    def __str__(self):
+        return self.name
 
 class MarketingSchedule(models.Model):
     """ This object represent a Clients Monthly Marketing Schedule """
+    
+    # Imports
+    from apps.accounts.models import Customer
 
+    # Fields
     start_date = models.DateField(default=datetime.date.today)
     topic = models.CharField(max_length=100)
     title = models.CharField(max_length=100)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True)
+    customer = models.ForeignKey('accounts.Customer', on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return f"{self.title}"
@@ -20,6 +33,7 @@ class WeeklyTopic(models.Model):
     week_start_date = models.DateField()
     topic = models.CharField(max_length=100)
     title = models.CharField(max_length=100)
+    index = models.IntegerField()
 
     class Meta:
         unique_together = ['schedule', 'week_start_date']
@@ -38,6 +52,7 @@ class DailyContent(models.Model):
     weekly_topic = models.ForeignKey(WeeklyTopic, on_delete=models.CASCADE, related_name="weekly_topic")
     daily_topic = models.CharField(max_length=100)
     title = models.CharField(max_length=100)
+    index = models.IntegerField()
     content_type = models.CharField(max_length=100, choices=CONTENT_TYPES)
     scheduled_date = models.DateField()
 
