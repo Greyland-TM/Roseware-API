@@ -16,23 +16,27 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
 # Celery Beat Schedule
-app.conf.beat_schedule = {
-    # 'check-for-packages': {
-    #     'task': 'apps.package_manager.tasks.daily_package_check',
-    #     'schedule': crontab(minute='*/1'),
-    #     'args': (),
-    # },
-    'debug': {
-        'task': 'apps.package_manager.tasks.debug_task',
-        'schedule': 15.0,
-        'args': ('testing', 'testing2'),
-    },
-}
+# app.conf.beat_schedule = {
+#     # 'check-for-packages': {
+#     #     'task': 'apps.package_manager.tasks.daily_package_check',
+#     #     'schedule': crontab(minute='*/1'),
+#     #     'args': (),
+#     # },
+#     'debug': {
+#         'task': 'apps.package_manager.tasks.debug_task',
+#         'schedule': 15.0,
+#         'args': ('testing', 'testing2'),
+#     },
+# }
 app.conf.beat_schedule = {
     'check-for-packages': {
         'task': 'apps.accounts.tasks.delete_old_sync_objects',
         'schedule': 3,
         'args': (),
     },
+    'create-daily-posts': {
+        'task': 'apps.marketing_manager.tasks.create_daily_posts',
+        'schedule': 3,
+        'args': (),
+    }
 }
-
