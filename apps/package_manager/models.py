@@ -106,7 +106,7 @@ class ServicePackage(models.Model):
     )
     RELATED_APP_CHOICES = (
         ("Duda", "Duda"),
-        ("Markit", "Markit"),
+        ("Roseware", "Roseware"),
         ("Ayrshare", "Ayrshare"),
     )
     ACTION_CHOICES = (("create", "Create"),)

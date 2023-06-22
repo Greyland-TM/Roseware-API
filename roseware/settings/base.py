@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "apps.pipedrive",
     "apps.stripe",
     "apps.monday",
+    "apps.marketing_manager",
 ]
 
 AUTHENTICATION_BACKENDS = [

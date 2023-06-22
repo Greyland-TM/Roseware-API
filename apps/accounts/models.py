@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import CharField, DateTimeField
 from phonenumber_field.modelfields import PhoneNumberField
+from django.apps import apps
 
 # from django.contrib.postgres.fields import ArrayField
 # from apps.ayrshare.models import SocialAccount
@@ -16,7 +17,12 @@ class Employee(models.Model):
 
 
 class Customer(models.Model):
+    """ This model represents a single customer """
+
+    # Choices
     STATUS_CHOICE_FIELDS = (('lead', 'Lead'), ('customer', 'Customer'))
+
+    # Fields
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     rep = models.ForeignKey(Employee, on_delete=models.CASCADE)
     first_name = CharField(default="", max_length=100, null=False, blank=False)
