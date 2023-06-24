@@ -8,7 +8,7 @@ from dateutil.relativedelta import SU  # for getting sunday of the week
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import WEEKLY, rrule
 from pytz import timezone
-from .models import DailyContent, Day, MarketingSchedule, WeeklyTopic
+from .models import DailyContent, Day, MarketingSchedule, WeeklyTopic, SocialPost
 
 
 def create_monthly_marketing_schedule(customer):
@@ -353,7 +353,7 @@ def create_schedules_daily_content(schedule):
                     continue
     return {"was_created": True}
 
-def create_social_post(content, platform):
+def create_social_post(content, platforms):
     print('creating social post...')
 
     # Initialize openai and setup an empty marketing schedule object
@@ -378,8 +378,9 @@ def create_social_post(content, platform):
     restrictions = f"Make sure to follow these specific rules very carefully for your response: {', '.join(restrictions_list)}"
     intention = "selling website and business integration tools and profssional websites on https://www.rosewareintegrations.com/"
     system_message = restrictions
+    platform_names = '& '.join(platform.name for platform in platforms)
     user_message = ' '.join(textwrap.dedent(f"""
-        Using the given topic and title, create a social media post for {platform.name} for {company_details} . The topic and title of the post
+        Using the given topic and title, create a social media post for {platform_names} for {company_details} . The topic and title of the post
         are, topic: {daily_content.daily_topic}, title: {daily_content.title}. The date is {datetime.now()}, and the marketing intention is
         {intention}. Keep the tone light and fun, but not too silly. Don't use any big words or complicated sentences.
         Do not make up any events, organizations, festivals, people or places that you were not explicitly told about
@@ -395,26 +396,29 @@ def create_social_post(content, platform):
             max_tokens=token_limit,  # Increase the max_tokens to allow the model to generate a more complete response
             temperature=1,  # Lower temperature makes the output more focused and deterministic
         )
-        # Parse the response into the new fields
+        # Parse the response to get the caption
         response_content = response['choices'][0]['message']['content']
         parsed_content = json.loads(response_content)
         caption = parsed_content["caption"]
-        print(caption)
-        image_prompt = f'Create a {platform.name} image, with no words, for the caption "{caption}"'
+        
+        # Generate an image for the caption
+        image_prompt = f'Create a {platform_names} image, with no words, for the caption "{caption}"'
         response = openai.Image.create(
             prompt=image_prompt,
             n=1,
             size="1024x1024"
         )
         image_url = response['data'][0]['url']
-        print(image_url)
+        
+        # Create the post
+        for platform in platforms:
+            new_social_post = SocialPost(
+                caption=caption,
+                image_url=image_url,
+                platform=platform.name
+            )
+            new_social_post.save()
         return True
     except Exception as error:
         print(error)
-    return False
-
-def send_facebook_post(caption):
-    return True
-
-def send_instagram_post(caption):
-    return True
+        return False

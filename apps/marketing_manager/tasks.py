@@ -37,7 +37,6 @@ def create_daily_content():
     for content in scheduled_content:
         customer = content.weekly_topic.schedule.customer
         platforms = CustomerSelectedPlatform.objects.filter(customer=customer)
-        for platform in platforms:
-            create_social_post(content, platform)
+        create_social_post(content, platforms)
             
     return True

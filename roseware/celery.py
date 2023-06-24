@@ -13,14 +13,6 @@ app.autodiscover_tasks()
 
 # Schedule tasks
 app.conf.beat_schedule = {
-<<<<<<< Updated upstream
-    'check-for-packages': {
-        'task': 'apps.accounts.tasks.delete_old_sync_objects',
-        'schedule': 30,
-        'args': (),
-    },
-=======
->>>>>>> Stashed changes
     'generate-monthly-marketing-schedules': {
         'task': 'apps.marketing_manager.tasks.generate_monthly_marketing_schedules',
         'schedule': crontab(hour=10, minute=0, day_of_month='1'),
@@ -28,8 +20,7 @@ app.conf.beat_schedule = {
     },
     'create-daily-content': {
         'task': 'apps.marketing_manager.tasks.create_daily_content',
-        # 'schedule': crontab(hour=17, minute=0),
-        'schedule': crontab(minute='*/1'),
+        'schedule': crontab(hour=17, minute=0),
         'args': (),
     }
 }

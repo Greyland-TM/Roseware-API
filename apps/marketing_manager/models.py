@@ -72,9 +72,9 @@ class SocialPost(models.Model):
     """ This model represents a single social media post """
 
     platform = models.CharField(max_length=100)
-    date_posted = models.DateField()
+    date_posted = models.DateField(null=True, blank=True)
     caption = models.CharField(max_length=100)
+    image_url = models.ImageField(upload_to='social_media_posts', null=True, blank=True)
 
     def __str__(self):
         return f"{self.platform}"
-    
