@@ -8,10 +8,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         try:
             print("*** Setting Up New Stripe Webhooks***")
-                
+
             # Get the environment variables
             # environment = os.environ.get('DJANGO_ENV')
-            # if environment == 'production':
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             # else:
@@ -21,7 +20,7 @@ class Command(BaseCommand):
             backend_url = os.environ.get('BACKEND_URL')
             http_auth_user = os.environ.get('HTTP_AUTH_USER')
             http_auth_pass = os.environ.get('HTTP_AUTH_PASSWORD')
-                
+
             # Get all current webhooks
             print("Getting current webhooks...")
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
@@ -46,7 +45,7 @@ class Command(BaseCommand):
                 ("pipedrive/package-sync-webhook/", "product", "updated"),
                 ("pipedrive/package-delete-webhook/", "product", "deleted"),
             ]
-            
+
             # Get the environment variables
             webhook_secret_token = os.environ.get("WEBHOOK_SECRET_TOKEN")
 
@@ -74,7 +73,7 @@ class Command(BaseCommand):
                 data = response.json()
                 status = data['status']
                 print(status)
-                                
+         
             print('done')
         except Exception as error:
             print(f'failed with error: {error}')

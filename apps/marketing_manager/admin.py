@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import DailyContent, MarketingSchedule, WeeklyTopic, Day
+from .models import DailyContent, MarketingSchedule, WeeklyTopic, Day, CustomerSelectedPlatform, SocialPost
 
 class DailyContentInline(admin.TabularInline):
     model = DailyContent
@@ -19,3 +19,5 @@ class MarketingScheduleAdmin(admin.ModelAdmin):
 admin.site.register(MarketingSchedule, MarketingScheduleAdmin)
 admin.site.register(WeeklyTopic, WeeklyTopicAdmin)
 admin.site.register(Day)
+admin.site.register(CustomerSelectedPlatform)
+admin.site.register(SocialPost)

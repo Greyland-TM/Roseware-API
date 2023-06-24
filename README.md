@@ -102,9 +102,10 @@
 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
-# NOTES 
+# NOTES
 
-- You will need to add the Toggles to the admin panel to be able to use the app. 
+- You will need to add the Toggles to the admin panel to be able to use the app.
+
 # **\*\*\*\***\*\*\***\*\*\*\***
 
 # EVNIRONMENT VARIABLES
@@ -112,6 +113,7 @@
 - Copy and paste the rest of the file into your .env and fill out the empty variables.
 
 # Database
+
 DB_NAME=
 DB_USER=
 DB_PASSWORD=
@@ -130,6 +132,7 @@ RABBITMQ_USERNAME=
 RABBITMQ_PASSWORD=
 
 # Monday
+
 MONDAY_API_URL=
 MONDAY_API_KEY=
 MONDAY_LEADS_BOARD_ID=
@@ -137,12 +140,16 @@ MONDAY_ClientS_BOARD_ID=
 MONDAY_PACKAGES_BOARD_ID=
 
 # Pipedrive
+
 PIPEDRIVE_USER_ID=
+
 # Pipedrive Sandbox
+
 PIPEDRIVE_API_KEY=
 PIPEDRIVE_DOMAIN=
 
-# TEMPORARY PIPEDRIVE 
+# TEMPORARY PIPEDRIVE
+
 PIPEDRIVE_PERSON_STRIPE_URL_KEY=
 PIPEDRIVE_PRODUCT_STRIPE_URL_KEY=
 PIPEDRIVE_DEAL_STRIPE_URL_KEY=
@@ -151,5 +158,6 @@ PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR=
 PIPEDRIVE_DEAL_PAYOUT_SELECTOR=
 
 # Stripe
-STRIPE_PRIVATE_TEST=
+
+STRIPE_PRIVATE=
 STRIPE_PUBLIC_TEST=

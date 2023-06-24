@@ -23,7 +23,7 @@ def create_pipedrive_customer(customer):
             stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
-        print(f'\** SETTING URL: {stripe_url} **')
+
         body = {
             'name': f'{customer.first_name} {customer.last_name}',
             'email': f'{customer.email}',

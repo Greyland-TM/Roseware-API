@@ -1,8 +1,9 @@
 from roseware.celery import app
-from apps.accounts.models import Customer
 from apps.package_manager.models import ServicePackage
-from .models import DailyContent
-from apps.marketing_manager.utils import create_monthly_marketing_schedule
+from .models import DailyContent, CustomerSelectedPlatform
+from apps.marketing_manager.utils import create_monthly_marketing_schedule, create_social_post
+from datetime import datetime
+from pytz import timezone
 
 
 @app.task
@@ -22,4 +23,21 @@ def generate_monthly_marketing_schedules():
 
     except Exception as e:
         print(f'Error: {e}')
+    return True
+
+@app.task
+def create_daily_content():
+    print('creating daily content')
+    
+    pacific = timezone('US/Pacific')
+    current_date_pacific = datetime.now(pacific).date()
+    
+    scheduled_content = DailyContent.objects.filter(scheduled_date=current_date_pacific)
+    
+    for content in scheduled_content:
+        customer = content.weekly_topic.schedule.customer
+        platforms = CustomerSelectedPlatform.objects.filter(customer=customer)
+        for platform in platforms:
+            create_social_post(content, platform)
+            
     return True

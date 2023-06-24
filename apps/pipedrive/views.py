@@ -2,8 +2,9 @@ import json
 import os
 import time
 from decimal import ROUND_HALF_UP, Decimal
-import stripe
+
 import requests
+import stripe
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -533,7 +534,7 @@ class DealSyncWebhook(APIView):
                     service_package.save(should_sync_pipedrive=False, should_sync_stripe=True)
 
             # Check if the customer has a payment method setup in Stripe
-            stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+            stripe.api_key = os.environ.get('STRIPE_PRIVATE')
             customer_id = package_plan.customer.stripe_customer_id
             try:
                 customer = stripe.Customer.retrieve(customer_id)

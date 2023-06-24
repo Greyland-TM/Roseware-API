@@ -14,7 +14,7 @@ from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
 
-stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+stripe.api_key = os.environ.get('STRIPE_PRIVATE')
 
 class ProductCreateWebhook(APIView):
     """ API view for creating a new product in stripe """
@@ -100,7 +100,7 @@ class ProductSyncWebhook(APIView):
         # Chaeck if the price has changed
         if product:
 
-            stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+            stripe.api_key = os.environ.get('STRIPE_PRIVATE')
             price_id = request.data['data']['object']['default_price']
 
             try:
