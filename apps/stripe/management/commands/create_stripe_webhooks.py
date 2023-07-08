@@ -43,7 +43,6 @@ class Command(BaseCommand):
             print("Creating new webhooks...")
             for url_path, event, key_name in webhook_urls:
                 url = f"{backend_url}/stripe/{url_path}"
-                print(url)
 
                 new_webhook = stripe.WebhookEndpoint.create(
                     url=url,
