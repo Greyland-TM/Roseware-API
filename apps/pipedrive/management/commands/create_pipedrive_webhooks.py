@@ -69,6 +69,7 @@ class Command(BaseCommand):
 
                 # Send the webhook creation request
                 url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
+                print(url)
                 response = requests.post(url, data=data)
                 data = response.json()
                 
