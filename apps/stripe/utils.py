@@ -123,8 +123,13 @@ def create_stripe_customer(customer):
     import traceback
     try:
         stripe.api_key = os.environ.get('STRIPE_PRIVATE')
+        if not stripe.api_key:
+            print("STRIPE_PRIVATE environment variable not set.")
+            return False
+        
         # Create a Stripe Customer
         name = f'{customer.first_name} {customer.last_name}'
+        print(f"Creating customer for {name} ({customer.email})")
         stripe_customer = stripe.Customer.create(
             name=name,
             email=customer.email,
@@ -132,14 +137,19 @@ def create_stripe_customer(customer):
         )
         print('stripe_customer', stripe_customer)
         stripe_customer_id = stripe_customer['id']
+        if not stripe_customer_id:
+            print("Could not get customer ID from Stripe.")
+            return False
+            
         customer.stripe_customer_id = stripe_customer_id
         customer.save(should_sync_stripe=False)
-        print('DONE, returning now...')
+        print('DONE, customer id saved.')
         return True
     except Exception as error:
         print(f"Error: {error}")
         traceback.print_exc()  
         return False
+
 
 """ UPDATE STRIPE CUSTOMER """
 def update_stripe_customer(customer):
