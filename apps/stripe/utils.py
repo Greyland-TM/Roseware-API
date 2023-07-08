@@ -120,8 +120,8 @@ def delete_stripe_product(stripe_id):
 
 """ CREATE STRIPE CUSTOMER """
 def create_stripe_customer(customer):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
+        stripe.api_key = os.environ.get('STRIPE_PRIVATE')
         # Create a Stripe Customer
         name = f'{customer.first_name} {customer.last_name}'
         stripe_customer = stripe.Customer.create(
@@ -133,9 +133,10 @@ def create_stripe_customer(customer):
         stripe_customer_id = stripe_customer['id']
         customer.stripe_customer_id = stripe_customer_id
         customer.save(should_sync_stripe=False)
+        print('DONE, returning now...')
         return True
     except Exception as error:
-        print(f"\nError: {error}")
+        print(f"Error: {error}")
         return False
 
 """ UPDATE STRIPE CUSTOMER """
