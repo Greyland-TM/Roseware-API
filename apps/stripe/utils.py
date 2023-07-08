@@ -129,6 +129,7 @@ def create_stripe_customer(customer):
             email=customer.email,
             phone=customer.phone,
         )
+        print('stripe_customer', stripe_customer)
         stripe_customer_id = stripe_customer['id']
         customer.stripe_customer_id = stripe_customer_id
         customer.save(should_sync_stripe=False)
