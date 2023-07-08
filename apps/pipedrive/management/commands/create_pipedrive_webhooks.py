@@ -71,8 +71,12 @@ class Command(BaseCommand):
                 url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
                 response = requests.post(url, data=data)
                 data = response.json()
+                
                 status = data['status']
-                print(status)
+                if status == 'error':
+                    print(f'{status}: {data}')
+                else:
+                    print(status)
          
             print('done')
         except Exception as error:
