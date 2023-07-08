@@ -39,7 +39,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name")
+        fields = ("id", "username", "email", "first_name", "last_name", "password")
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -48,7 +48,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ("id", "username", "email", "password", "first_name", "last_name")
 
     def create(self, validated_data):
-        print('Creating user: ', validated_data)
+        print('\n* Creating user: ', validated_data)
         try:
             user = User.objects.create_user(
                 username=validated_data["username"],

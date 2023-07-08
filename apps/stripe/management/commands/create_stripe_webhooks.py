@@ -12,11 +12,7 @@ class Command(BaseCommand):
             print("*** Setting Up New Stripe Webhooks***")
             # Get the environment variables
             backend_url = os.environ.get('BACKEND_URL')
-            environment = os.environ.get('DJANGO_ENV')
-            if environment == 'production':
-                stripe.api_key = os.environ.get('STRIPE_PRIVATE_LIVE')
-            else:
-                stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+            stripe.api_key = os.environ.get('STRIPE_PRIVATE')
 
             # Delete all current webhooks
             print("Getting current webhooks...")
