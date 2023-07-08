@@ -120,6 +120,7 @@ def delete_stripe_product(stripe_id):
 
 """ CREATE STRIPE CUSTOMER """
 def create_stripe_customer(customer):
+    import traceback
     try:
         stripe.api_key = os.environ.get('STRIPE_PRIVATE')
         # Create a Stripe Customer
@@ -137,6 +138,7 @@ def create_stripe_customer(customer):
         return True
     except Exception as error:
         print(f"Error: {error}")
+        traceback.print_exc()  
         return False
 
 """ UPDATE STRIPE CUSTOMER """
