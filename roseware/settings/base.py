@@ -1,5 +1,6 @@
 """
 Django settings for Roseware API
+Just a quick check..
 """
 
 import os
