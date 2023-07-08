@@ -18,6 +18,39 @@ from apps.package_manager.models import (PackagePlan, ServicePackage,
 from apps.stripe.models import StripePaymentDetails
 
 
+class PipedriveOauth(APIView):
+    """
+    This view will recieve a code from an oauth redirect from pipedrive.
+    The code will be used to get an access token, which will be stored with amazon secretcs manager.
+    """
+    
+    def post(self, request):
+        # Get the code from the request
+        code = request.data.get('code')
+        # Get the pipedrive client id and secret from the environment variables
+        client_id = os.environ.get('PIPEDRIVE_CLIENT_ID')
+        client_secret = os.environ.get('PIPEDRIVE_CLIENT_SECRET')
+        # Define the URL
+        url = 'https://oauth.pipedrive.com/oauth/token'
+        # Define the payload
+        payload = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'redirect_uri': 'https://loud-actors-look.loca.lt/dashboard/'
+        }
+        response = requests.post(url, data=payload)
+        print('Response status: ', response.status_code)
+        print('Response content: ', response.content)
+        # access_token = response.json()['access_token']
+        # refresh_token = response.json()['refresh_token']
+        # Store the access token in amazon secrets manager
+        # Return the access token
+        return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
+
+
+
 # Create your views here.
 class PackageCreateWebhook(APIView):
     """

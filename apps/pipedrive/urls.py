@@ -9,10 +9,11 @@ from .views import (
     DealCreateWebhook,
     DealSyncWebhook,
     DealDeleteWebhook,
-    
+    PipedriveOauth,
 )
 
 urlpatterns = [
+    path("oauth/", PipedriveOauth.as_view()),
     path("customer-create-webhook/", CustomerCreateWebhook.as_view()),
     path("customer-sync-webhook/", CustomerSyncWebhook.as_view()),
     path("customer-delete-webhook/", CustomerDeleteWebhook.as_view()),
