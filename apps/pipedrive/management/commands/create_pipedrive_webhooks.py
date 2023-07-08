@@ -13,9 +13,6 @@ class Command(BaseCommand):
             # environment = os.environ.get('DJANGO_ENV')
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-            # else:
-            #     pipedrive_key = os.environ.get('PIPEDRIVE_STAGING_API_KEY')
-            #     pipedrive_domain = os.environ.get('PIPEDRIVE_STAGING_DOMAIN')
             pipedrive_user_id = os.environ.get('PIPEDRIVE_USER_ID')
             backend_url = os.environ.get('BACKEND_URL')
             http_auth_user = os.environ.get('HTTP_AUTH_USER')
@@ -69,7 +66,6 @@ class Command(BaseCommand):
 
                 # Send the webhook creation request
                 url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
-                print(url)
                 response = requests.post(url, data=data)
                 data = response.json()
                 
