@@ -74,8 +74,7 @@
 - In the first terminal, start your rabbitmq server => `sudo rabbitmq-server`
 - Open another new server and navigate to the root of this app,
 - From there run => `pipenv shell` then, `celery -A roseware worker -f roseware.log -l info` or `celery -A roseware worker -l INFO`
-- Repeat the previous step but run this command => `pipenv shell` then, `celery -A roseware worker -B`
-  `
+- Repeat the previous step but run this command => `pipenv shell` then, `celery -A roseware worker -B`. You only need to run this if you are testing the scheduled tasks.
   And now your done, and ready to starty using Celery!
 
 # **\*\*\*\***\*\*\***\*\*\*\***
@@ -86,19 +85,6 @@
 - To test the webhooks you can use ngrok. run `./ngrok http 8000` the copy the url and put in in the .env variable called `BACKEND_URL=url`
 - Once that is set, you can run the commands `python manage.py create_pipedrive_webhooks` and `python manage.py create_stripe_webhooks`.
 - After that all the platforms should be synced and ready to go.
-
-# **\*\*\*\***\*\*\***\*\*\*\***
-
-# HOW TO KNOW YOUR PROPERLY SETUP?
-
-- You should have a running frontend and backend...
-- You should also have at least 3 other terminals open and running:
-
-  - a rabbitmq server, celery worker, celery beat
-  - If you watch the celery-beat terminal for a while you should see "Checking customer packages..." every minute or so
-
-- Next I would just create a bunch of customers using the basit user registration form. You should see lots of print statements.
-  - Hopefully you dont see any `Error: ` logs, then somethings gone wrong...
 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
