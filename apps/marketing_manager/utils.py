@@ -7,12 +7,12 @@ import openai
 from dateutil.relativedelta import SU  # for getting sunday of the week
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import WEEKLY, rrule
-
-from .models import DailyContent, Day, MarketingSchedule, WeeklyTopic
+from pytz import timezone
+from .models import DailyContent, Day, MarketingSchedule, WeeklyTopic, SocialPost
 
 
 def create_monthly_marketing_schedule(customer):
-    
+
     # Create the base schedule
     schedule = create_customer_monthly_schedule(customer)
     if not schedule["was_created"]:
@@ -29,7 +29,7 @@ def create_monthly_marketing_schedule(customer):
             print(f"There was an issue generating the topics on attempt {attempt + 1}. Trying again now.")
             schedule.delete()
             return False
-            
+
     # Create the daily contents
     for attempt in range(3):
         contents = create_schedules_daily_content(schedule)
@@ -52,7 +52,7 @@ def create_customer_monthly_schedule(customer):
         print('Setting up monthly schedule topic...')
         openai.api_key = os.environ.get("OPENAI_API_KEY")
         model = "gpt-4"
-        token_limit=150
+        token_limit = 150
 
         # Set up the propt with custom details
         organization_field = "software development"
@@ -65,7 +65,7 @@ def create_customer_monthly_schedule(customer):
         topics_list = list(topics)
         previous_topics = f"These are the topics that have already been used, make sure your topics are all unique: {', '.join(topics_list)}"
         restrictions_list = [
-            "The title and topic should no have more than 100 characters in each (less is preferred, short and sweet), This is the most important rule",
+            "The title and topic should no have more than 100 characters in each (less is preferred), This is the most important rule",
             "Your response should only have a json object with a title and a topic field, this is the second most important rule.",
             "Do not make up any events, organizations, festivals, people or places that you were not explicitly told about",
             "Do not state that the organization or company will be present at any events unless it is stated in the events",
@@ -83,7 +83,7 @@ def create_customer_monthly_schedule(customer):
         # Try and set the topic and title 3 times. Do this incase gpt gives an unexpected response
         for _ in range(3):  
             try:
-                response = response = openai.ChatCompletion.create(
+                response = openai.ChatCompletion.create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_message},
@@ -149,7 +149,7 @@ def create_customer_monthly_schedule(customer):
 
 def create_schedules_weekly_topics(schedule):
     """ This function should create a WeeklyTopic for a given MarketingSchedule using the OpenAI API """
-    
+
     # Initialize openai and setup an empty marketing schedule object
     openai.api_key = os.environ.get("OPENAI_API_KEY")
     model = "gpt-4"
@@ -176,12 +176,12 @@ def create_schedules_weekly_topics(schedule):
     current_week_start = today - timedelta(days=today.weekday() + 1) if today.weekday() != 6 else today
     for index in range(len(weeks) - 1):
         current_week_for_prompt = index
-        
+
         # if week_start_date is in the past, continue to next iteration
         week_start_date = weeks[index]
         if week_start_date.date() < current_week_start:
             continue
-        
+
         # Set up the propt with custom details
         organization_field = "software development"
         organization_name = "Roseware Integrations"
@@ -214,7 +214,7 @@ def create_schedules_weekly_topics(schedule):
         print('Creating new weekly topic...')
         for _ in range(3):
             try:
-                response = response = openai.ChatCompletion.create(
+                response = openai.ChatCompletion.create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_message},
@@ -243,19 +243,20 @@ def create_schedules_weekly_topics(schedule):
                 break
 
             except Exception as error:
+                print(error)
                 continue
 
     return {"was_created": True}
 
 def create_schedules_daily_content(schedule):
     """ This function should create the DailyContents for a given MarketingSchedule using the OpenAI API """
-    
+
     # Initialize openai and setup an empty marketing schedule object
     openai.api_key = os.environ.get("OPENAI_API_KEY")
     model = "gpt-4"
     token_limit = 150
     total_weeks_for_prompt = 0
-    
+
     # get the weeks first
     weekly_topics = WeeklyTopic.objects.filter(schedule=schedule).order_by('index')
     customer = weekly_topics.first().schedule.customer
@@ -263,20 +264,23 @@ def create_schedules_daily_content(schedule):
     current_week_for_prompt = 0
     day_count = 0
     total_weeks_for_prompt = weekly_topics.count()
-    
+
     if selected_days.count() == 0:
         return {"was_created": False, "message": "No days were selected for this customer"}
-        
+
     for week in weekly_topics:
         day_count = 0
         current_week_for_prompt = week.index
         for day in selected_days:
-            
+
             # if day is in the past, continue to next iteration
-            if week.week_start_date + timedelta(days=day.index) < date.today():
+            pacific = timezone('US/Pacific')
+            current_time_pacific = datetime.now(pacific).date()
+            if week.week_start_date + timedelta(days=day.index) < current_time_pacific:
+                print(f'Skipping day {day.index} because it is in the past')
                 day_count += 1
                 continue
-            
+
             # Set up the propt with custom details
             organization_field = "software development"
             organization_name = "Roseware Integrations"
@@ -313,10 +317,10 @@ def create_schedules_daily_content(schedule):
                 creative and unique. Use any holidays, seasons, local celebrations, or other things of this nature for helping
                 to pick a topic. {company_details}. The date is {datetime.now()}, and the marketing intention is {intention}.
             """).split())
-            
+
             for _ in range(3):
                 try:
-                    response = response = openai.ChatCompletion.create(
+                    response = openai.ChatCompletion.create(
                         model=model,
                         messages=[
                             {"role": "system", "content": system_message},
@@ -331,7 +335,7 @@ def create_schedules_daily_content(schedule):
                     parsed_content = json.loads(response_content)
                     daily_topic = parsed_content["topic"]
                     daily_title = parsed_content["title"]
-                        
+   
                     new_daily_content = DailyContent(
                         weekly_topic=week,
                         daily_topic=daily_topic,
@@ -349,3 +353,72 @@ def create_schedules_daily_content(schedule):
                     continue
     return {"was_created": True}
 
+def create_social_post(content, platforms):
+    print('creating social post...')
+
+    # Initialize openai and setup an empty marketing schedule object
+    daily_content = content
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
+    model = "gpt-4"
+    token_limit = 150
+
+    # Set up the propt with custom details
+    organization_field = "software development"
+    organization_name = "Roseware Integrations"
+    organization_country = "United States"
+    organization_state = "Oregon"
+    organization_city = "Portland"
+    company_details = f"a {organization_field} company, called {organization_name}, from {organization_city} {organization_state}, {organization_country}"
+    restrictions_list = [
+        "The post should be no more that 500 characters (less is preferred, short and sweet), This is the most important rule",
+        "Your response should only have a json object with a 'caption' field, this is the second most important rule.",
+        "Do not make up any events, organizations, festivals, people or places that you were not explicitly told about",
+        "Do not state that the organization or company will be present at any events unless it is stated in the events",
+    ]
+    restrictions = f"Make sure to follow these specific rules very carefully for your response: {', '.join(restrictions_list)}"
+    intention = "selling website and business integration tools and profssional websites on https://www.rosewareintegrations.com/"
+    system_message = restrictions
+    platform_names = '& '.join(platform.name for platform in platforms)
+    user_message = ' '.join(textwrap.dedent(f"""
+        Using the given topic and title, create a social media post for {platform_names} for {company_details} . The topic and title of the post
+        are, topic: {daily_content.daily_topic}, title: {daily_content.title}. The date is {datetime.now()}, and the marketing intention is
+        {intention}. Keep the tone light and fun, but not too silly. Don't use any big words or complicated sentences.
+        Do not make up any events, organizations, festivals, people or places that you were not explicitly told about
+    """).split())
+
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=token_limit,  # Increase the max_tokens to allow the model to generate a more complete response
+            temperature=1,  # Lower temperature makes the output more focused and deterministic
+        )
+        # Parse the response to get the caption
+        response_content = response['choices'][0]['message']['content']
+        parsed_content = json.loads(response_content)
+        caption = parsed_content["caption"]
+        
+        # Generate an image for the caption
+        image_prompt = f'Create a {platform_names} image, with no words, for the caption "{caption}"'
+        response = openai.Image.create(
+            prompt=image_prompt,
+            n=1,
+            size="1024x1024"
+        )
+        image_url = response['data'][0]['url']
+        
+        # Create the post
+        for platform in platforms:
+            new_social_post = SocialPost(
+                caption=caption,
+                image_url=image_url,
+                platform=platform.name
+            )
+            new_social_post.save()
+        return True
+    except Exception as error:
+        print(error)
+        return False

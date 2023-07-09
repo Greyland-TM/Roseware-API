@@ -14,7 +14,7 @@ from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
 
-stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+stripe.api_key = os.environ.get('STRIPE_PRIVATE')
 
 class ProductCreateWebhook(APIView):
     """ API view for creating a new product in stripe """
@@ -100,7 +100,7 @@ class ProductSyncWebhook(APIView):
         # Chaeck if the price has changed
         if product:
 
-            stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+            stripe.api_key = os.environ.get('STRIPE_PRIVATE')
             price_id = request.data['data']['object']['default_price']
 
             try:
@@ -255,13 +255,15 @@ class CustomerSyncWebhook(APIView):
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
         # get the customer stripe id from the webhook
-        customer_stripe_date = request.data['data']['object']
-        customer_id = customer_stripe_date['id']
-        stripe_phone = customer_stripe_date.get('phone', '')
-        name_split = customer_stripe_date.get('name', '').split(' ')
+        print('Getting the suctomers stripe id...')
+        customer_stripe_data = request.data['data']['object']
+        print('customer_stripe_data: ', customer_stripe_data)
+        customer_id = customer_stripe_data['id']
+        stripe_phone = customer_stripe_data.get('phone', '')
+        name_split = customer_stripe_data.get('name', '').split(' ')
         stripe_fist_name = name_split[0] if len(name_split) > 0 else ''
         stripe_last_name = ' '.join(name_split[1:]) if len(name_split) > 1 else ''
-        stripe_email = customer_stripe_date['email']
+        stripe_email = customer_stripe_data['email']
 
         # get the customer from the db
         customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
@@ -273,13 +275,6 @@ class CustomerSyncWebhook(APIView):
             is_email_same = customer.email == stripe_email
             is_phone_same = customer.phone == stripe_phone
             is_same = is_first_name_same and is_last_name_same and is_email_same and is_phone_same
-            # print('\n***\nCHECKING FOR SAME DATA\n***')
-            # print(f'stripe_first_name: {stripe_fist_name}, customer.first_name: {customer.first_name}, is_first_name_same: {is_first_name_same}')
-            # print(f'stripe_last_name: {stripe_last_name}, customer.last_name: {customer.last_name}, is_last_name_same: {is_last_name_same}')
-            # print(f'stripe_email: {stripe_email}, customer.email: {customer.email}, is_email_same: {is_email_same}')
-            # print(f'stripe_phone: {stripe_phone}, customer.phone: {customer.phone}, is_phone_same: {is_phone_same}')
-            # print(f'is_same: {is_same}')
-            # print('\n***\n')
             if is_same:
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
         except Exception as e:

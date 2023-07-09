@@ -17,13 +17,12 @@ def create_pipedrive_customer(customer):
         url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons?api_token={pipedrive_key}'
         
         pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
-        print(f'\n\n** SETTING KEY: {pipedrive_person_stripe_url_key} **')
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
-        print(f'\** SETTING URL: {stripe_url} **')
+
         body = {
             'name': f'{customer.first_name} {customer.last_name}',
             'email': f'{customer.email}',
@@ -34,7 +33,7 @@ def create_pipedrive_customer(customer):
 
         # Check the response data and update the customers pipedrive id
         data = response.json()
-        print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
+        # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
         customer_created = data['success']
 
         if not customer_created:

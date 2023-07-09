@@ -7,9 +7,12 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Customer, Employee
-from .serializers import CustomerSerializer, LoginSerializer, UserSerializer
+from rest_framework.permissions import AllowAny
 from apps.pipedrive.tasks import sync_pipedrive
+from .models import Customer, Employee
+from .serializers import CustomerSerializer, LoginSerializer, UserSerializer, RegisterSerializer
+from rest_framework.authentication import (BasicAuthentication,
+                                           SessionAuthentication)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -20,18 +23,17 @@ class LoginAPIView(generics.GenericAPIView):
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             user = serializer.validated_data
+            token = AuthToken.objects.create(user)[1]
+            print('New Token: ', token)
             return Response(
                 {
                     "user": UserSerializer(user, context=self.get_serializer_context()).data,
-                    "token": AuthToken.objects.create(user)[1],
+                    "token": token,
                 }
             )
         except Exception as error:
             print(f"Error: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-
-from rest_framework.permissions import AllowAny
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 class CreateCustomerAPIView(APIView):
     """API view to create a customer"""
@@ -51,18 +53,19 @@ class CreateCustomerAPIView(APIView):
                 error_message = f"Missing required fields: {missing_fields_str}"
                 return Response({"ok": False, "error": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
+            password = request.data.get("password")
             # If type and password are not sent in request then save as defaults here...
             new_user_data = {
                 "first_name": request.data.get("first_name", None),
                 "last_name": request.data.get("last_name", None),
                 "username": request.data.get("email", None),
                 "email": request.data.get("email", None),
-                # "phone": request.data.get("phone", None),
-                "password": request.data.get("password", "markittemppass2023"),
+                "phone": request.data.get("phone", None),
+                "password": password,
             }
 
             # Now pass the 'data' dictionary to the serializer
-            serializer = UserSerializer(data=new_user_data)
+            serializer = RegisterSerializer(data=new_user_data)
             serializer.is_valid(raise_exception=True)
             user = serializer.save()
 
@@ -80,13 +83,23 @@ class CreateCustomerAPIView(APIView):
             if customer.status == "lead":
                 sync_pipedrive.delay(customer.pk, "create", "lead")
                 
-            return Response(
-                {
-                    "ok": True,
-                    "new_customer": CustomerSerializer(customer).data,
-                    "token": AuthToken.objects.create(user)[1],
-                }
-            )
+            try:
+                print('\n* New user: ', user)
+                login_seralizer = LoginSerializer(data={"username": user.username, "password": password})
+                login_seralizer.is_valid(raise_exception=True)
+                user = login_seralizer.validated_data
+                token = AuthToken.objects.create(user)[1]
+                print('New Token: ', token)
+                return Response(
+                    {
+                        "user": UserSerializer(user).data,
+                        "token": token,
+                    }
+                )
+            except Exception as error:
+                print(f"Error: {error}")
+                return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as error:
             print(f"*** Error 2: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)

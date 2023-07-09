@@ -1,16 +1,18 @@
-from apps.package_manager.models import ServicePackageTemplate, PackagePlan, ServicePackage
-from apps.accounts.models import Customer
-from apps.stripe.models import StripePaymentDetails, StripeSubscription
 import os
-import stripe
 import time
+
+import stripe
 from celery.exceptions import Retry
 
+from apps.accounts.models import Customer
+from apps.package_manager.models import (PackagePlan, ServicePackage,
+                                         ServicePackageTemplate)
+from apps.stripe.models import StripePaymentDetails, StripeSubscription
 
 """ CREATE STRIPE DETAILS """
 def setup_payment_details(customer, payment_details, package_plan):
     # Create a Stripe Payment Method
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         customer_payment_method = StripePaymentDetails.objects.filter(customer=customer).first()
 
@@ -42,7 +44,7 @@ def setup_payment_details(customer, payment_details, package_plan):
 def create_stripe_product(product):
 
     try:
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = os.environ.get('STRIPE_PRIVATE')
         # Create a Stripe Product
         stripe_product = stripe.Product.create(
             name=product.name,
@@ -70,7 +72,7 @@ def create_stripe_product(product):
 """ UPDATE STRIPE PRODUCT """
 def update_stripe_product(product):
     try:
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = os.environ.get('STRIPE_PRIVATE')
         # Check the current value of the Stripe Price
         stripe_price = stripe.Price.retrieve(product.stripe_price_id)
 
@@ -108,7 +110,7 @@ def update_stripe_product(product):
 
 """ DELETE STRIPE PRODUCT """
 def delete_stripe_product(stripe_id):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         stripe.Product.modify(stripe_id, active=False)
         return True
@@ -118,26 +120,40 @@ def delete_stripe_product(stripe_id):
 
 """ CREATE STRIPE CUSTOMER """
 def create_stripe_customer(customer):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    import traceback
     try:
+        stripe.api_key = os.environ.get('STRIPE_PRIVATE')
+        if not stripe.api_key:
+            print("STRIPE_PRIVATE environment variable not set.")
+            return False
+        
         # Create a Stripe Customer
         name = f'{customer.first_name} {customer.last_name}'
+        print(f"Creating customer for {name} ({customer.email})")
         stripe_customer = stripe.Customer.create(
             name=name,
             email=customer.email,
             phone=customer.phone,
         )
+        print('stripe_customer', stripe_customer)
         stripe_customer_id = stripe_customer['id']
+        if not stripe_customer_id:
+            print("Could not get customer ID from Stripe.")
+            return False
+            
         customer.stripe_customer_id = stripe_customer_id
         customer.save(should_sync_stripe=False)
+        print('DONE, customer id saved.')
         return True
     except Exception as error:
-        print(f"\nError: {error}")
+        print(f"Error: {error}")
+        traceback.print_exc()  
         return False
+
 
 """ UPDATE STRIPE CUSTOMER """
 def update_stripe_customer(customer):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         # Update a Stripe Customer
         name = f'{customer.first_name} {customer.last_name}'
@@ -154,7 +170,7 @@ def update_stripe_customer(customer):
 
 """ DELETE STRIPE CUSTOMER """""
 def delete_stripe_customer(stripe_id):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         # Delete the Stripe Customer
         stripe.Customer.delete(stripe_id)
@@ -165,7 +181,7 @@ def delete_stripe_customer(stripe_id):
 
 """ CREATE STRIPE PAYMENT METHOD """
 def create_stripe_payment_method(payment_details):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         # Create a Stripe Payment Method
         stripe_payment_method = stripe.PaymentMethod.create(
@@ -201,7 +217,7 @@ def create_stripe_payment_method(payment_details):
 
 """ UPDATE STRIPE PAYMENT METHOD """
 def update_stripe_payment_method(payment_details):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         # Update a Stripe Payment Method
         stripe.PaymentMethod.modify(
@@ -219,7 +235,7 @@ def update_stripe_payment_method(payment_details):
 
 """ DELETE STRIPE PAYMENT METHOD """
 def delete_stripe_payment_method(stripe_id):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         # Delete the Stripe Payment Method
         stripe.PaymentMethod.detach(stripe_id)
@@ -230,7 +246,7 @@ def delete_stripe_payment_method(stripe_id):
 
 """ CREATE STRIPE SUBSCRIPTION """
 def create_stripe_subscription(subscription):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         print('Creating Stripe Subscription...')
         # print('Creating Stripe Subscription...')
@@ -291,7 +307,7 @@ def create_stripe_subscription(subscription):
 """ UPDATE STRIPE SUBSCRIPTION """
 
 def update_stripe_subscription(subscription):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
 
     def create_new_subscription_price(subscription, service_package):
         if not service_package.stripe_subscription_item_id:
@@ -413,7 +429,7 @@ def update_stripe_subscription(subscription):
 
 """ DELETE STRIPE SUBSCRIPTION """
 def delete_stripe_subscription(stripe_id):
-    stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+    stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
         # Delete the Stripe Subscription
         print('\n* DELETING STRIPE SUBSCRIPTION')

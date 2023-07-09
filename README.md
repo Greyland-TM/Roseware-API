@@ -74,8 +74,7 @@
 - In the first terminal, start your rabbitmq server => `sudo rabbitmq-server`
 - Open another new server and navigate to the root of this app,
 - From there run => `pipenv shell` then, `celery -A roseware worker -f roseware.log -l info` or `celery -A roseware worker -l INFO`
-- Repeat the previous step but run this command => `pipenv shell` then, `celery -A roseware worker -B`
-  `
+- Repeat the previous step but run this command => `pipenv shell` then, `celery -A roseware worker -B`. You only need to run this if you are testing the scheduled tasks.
   And now your done, and ready to starty using Celery!
 
 # **\*\*\*\***\*\*\***\*\*\*\***
@@ -89,22 +88,10 @@
 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
-# HOW TO KNOW YOUR PROPERLY SETUP?
+# NOTES
 
-- You should have a running frontend and backend...
-- You should also have at least 3 other terminals open and running:
+- You will need to add the Toggles to the admin panel to be able to use the app.
 
-  - a rabbitmq server, celery worker, celery beat
-  - If you watch the celery-beat terminal for a while you should see "Checking customer packages..." every minute or so
-
-- Next I would just create a bunch of customers using the basit user registration form. You should see lots of print statements.
-  - Hopefully you dont see any `Error: ` logs, then somethings gone wrong...
-
-# **\*\*\*\***\*\*\***\*\*\*\***
-
-# NOTES 
-
-- You will need to add the Toggles to the admin panel to be able to use the app. 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
 # EVNIRONMENT VARIABLES
@@ -112,6 +99,7 @@
 - Copy and paste the rest of the file into your .env and fill out the empty variables.
 
 # Database
+
 DB_NAME=
 DB_USER=
 DB_PASSWORD=
@@ -130,6 +118,7 @@ RABBITMQ_USERNAME=
 RABBITMQ_PASSWORD=
 
 # Monday
+
 MONDAY_API_URL=
 MONDAY_API_KEY=
 MONDAY_LEADS_BOARD_ID=
@@ -137,12 +126,16 @@ MONDAY_ClientS_BOARD_ID=
 MONDAY_PACKAGES_BOARD_ID=
 
 # Pipedrive
+
 PIPEDRIVE_USER_ID=
+
 # Pipedrive Sandbox
+
 PIPEDRIVE_API_KEY=
 PIPEDRIVE_DOMAIN=
 
-# TEMPORARY PIPEDRIVE 
+# TEMPORARY PIPEDRIVE
+
 PIPEDRIVE_PERSON_STRIPE_URL_KEY=
 PIPEDRIVE_PRODUCT_STRIPE_URL_KEY=
 PIPEDRIVE_DEAL_STRIPE_URL_KEY=
@@ -151,5 +144,6 @@ PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR=
 PIPEDRIVE_DEAL_PAYOUT_SELECTOR=
 
 # Stripe
-STRIPE_PRIVATE_TEST=
+
+STRIPE_PRIVATE=
 STRIPE_PUBLIC_TEST=
