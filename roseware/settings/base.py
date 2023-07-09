@@ -9,14 +9,14 @@ from dotenv import load_dotenv
 
 # Get the environment variables
 # Import development or production settings based on the environment
-if os.environ.get("DJANGO_ENV") == "production":
-    from roseware.settings.production import *
-    CELERY_BROKER_URL = os.environ.get("CLOUDAMQP_URL")
-else:
+if os.environ.get("DJANGO_ENV") == "development":
     from roseware.settings.development import *
     rabbitmq_username = os.environ.get("RABBITMQ_USERNAME")
     rabbitmq_password = os.environ.get("RABBITMQ_PASSWORD")
     CELERY_BROKER_URL = f'amqp://{rabbitmq_username}:{rabbitmq_password}@localhost:5672/myvhost'
+else:
+    from roseware.settings.production import *
+    CELERY_BROKER_URL = os.environ.get("CLOUDAMQP_URL")
 
 load_dotenv()
 
