@@ -10,7 +10,6 @@ class Command(BaseCommand):
             print("*** Setting Up New Stripe Webhooks***")
 
             # Get the environment variables
-            # environment = os.environ.get('DJANGO_ENV')
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             pipedrive_user_id = os.environ.get('PIPEDRIVE_USER_ID')
