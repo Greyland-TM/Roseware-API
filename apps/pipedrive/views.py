@@ -20,6 +20,7 @@ from apps.stripe.models import StripePaymentDetails
 
 class PipedriveOauth(APIView):
     """
+    IN PROGRESS...
     This view will recieve a code from an oauth redirect from pipedrive.
     The code will be used to get an access token, which will be stored with amazon secretcs manager.
     """
@@ -80,7 +81,6 @@ class PackageCreateWebhook(APIView):
             related_app = type_split[0]
             description = request_data['description']
             unit = request_data['unit']
-            # unit = request_data['prices'][0]['unit']
 
             # Check if the webhook is being sent as a result of a sync
             ongoing_sync = OngoingSync.objects.filter(type='package_template', action='create').first()
