@@ -118,10 +118,10 @@ def sync_pipedrive(pk, action, type):
                 was_deleted = delete_pipedrive_service_package(service_package)
 
         elif type == 'lead':
-            print(f'\n\nCREATING PIPEDRRIVE LEAD\n\n')
+            print('\n\nCREATING PIPEDRRIVE LEAD\n\n')
             customer_qs = Customer.objects.filter(pk=pk)
             customer = customer_qs.first()
-        
+
             # *** Create New Pipedrive Lead ***
             if action == 'create':
                 was_lead_created = create_pipedrive_lead(customer)

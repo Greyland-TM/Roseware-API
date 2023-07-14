@@ -30,10 +30,11 @@ Oce you get everything up and running here is the experience I'm going for. You 
 are dropped onto your dashboard. (pause: as far as frontend ui, this is as far as I have gotten. The backend functionality is mostly in place, and the fronend authentication system works.
 But there are still a few big bugs and potential imporvements to be made. un-pause): On the dashboard there are 3 selections. Webpages, Integrations and Marketing. 
 
-Webpages: This is where they request that we make them a website, or registar their website into our services. I'm not really sure how this part will look yet. 
+Webpages: This is where they request that we make them a website, or register their website into our services. I'm not really sure how this part will look yet. 
 
-Marketing: This will basically just be two Ayrshare buttons that connect to the users social media. The marketing system is mostly made.
-  If you look at `apps/marketing_manager/models` you will see the models for the marketing system. It all runs on celery task running on a cron schedule with celery beat. (There is a celery section)
+Marketing: This will basically just be two Ayrshare buttons that connect to the users social media. The marketing system is mostly working already.
+  If you look at `apps/marketing_manager/models` you will see the models for the marketing system. It all runs on celery task running a cron schedule with celery beat. (There is a celery section)
+  It can generate social media posts and blogs generated with OpenAI and keeps to a planned montly schedule with generated topics ahgead of time. It still needs to make use of midjourny.
   
 Integrations: This is where the user will connect their accounts to our system. I am working on transitioning the api away from api keys and environment variables in favor of oauth. 
   This way we can store our users access and refresh tokens (probably in aws secrets manager) and use them to make api calls. This allows us to make api calls on behalf of our users.
@@ -148,51 +149,53 @@ Integrations: This is where the user will connect their accounts to our system. 
 - Copy and paste the rest of the file into your .env and fill out the empty variables.
 
 # Database
-
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
-DB_HOST=
-DB_PORT=
-BACKEND_URL={ NGROK URL }
-HTTP_AUTH_USER=
-HTTP_AUTH_PASSWORD=
-SECRET_KEY=
-PORT=
-WEBHOOK_SECRET_TOKEN=
+DB_NAME=you-db-name
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
+DB_HOST=127.0.0.1
+DB_PORT=5432
+BACKEND_URL=your-ngrok-tunnel
+HTTP_AUTH_USER=your-superuser-username
+HTTP_AUTH_PASSWORD=your-superuser-password
+SECRET_KEY=ask-greyland
+PORT=8000
+WEBHOOK_SECRET_TOKEN=ask-greyland
 DJANGO_ENV=development
 
-#Celery
-RABBITMQ_USERNAME=
-RABBITMQ_PASSWORD=
+# OpenAI
+OPENAI_API_KEY=
 
-# Monday
+# Celery
+RABBITMQ_USERNAME=your-celery-username
+RABBITMQ_PASSWORD=your-celery-password
 
-MONDAY_API_URL=
-MONDAY_API_KEY=
-MONDAY_LEADS_BOARD_ID=
-MONDAY_ClientS_BOARD_ID=
-MONDAY_PACKAGES_BOARD_ID=
-
-# Pipedrive
-
+# PIPEDRIVE 
 PIPEDRIVE_USER_ID=
-
-# Pipedrive Sandbox
-
 PIPEDRIVE_API_KEY=
 PIPEDRIVE_DOMAIN=
-
-# TEMPORARY PIPEDRIVE
-
 PIPEDRIVE_PERSON_STRIPE_URL_KEY=
 PIPEDRIVE_PRODUCT_STRIPE_URL_KEY=
 PIPEDRIVE_DEAL_STRIPE_URL_KEY=
 PIPEDRIVE_DEAL_TYPE_FIELD=
 PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR=
 PIPEDRIVE_DEAL_PAYOUT_SELECTOR=
+PIPEDRIVE_CLIENT_ID=
+PIPEDRIVE_CLIENT_SECRET=
 
 # Stripe
+STRIPE_PRIVATE= 
 
-STRIPE_PRIVATE=
-STRIPE_PUBLIC_TEST=
+# Ayrshare - PERSONAL ACCOUNT
+AYRSHARE_API_KEY=
+
+# AWS
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET_NAME=
+
+# Monday - You can ignore this for now
+MONDAY_API_URL=
+MONDAY_API_KEY=
+MONDAY_LEADS_BOARD_ID=
+MONDAY_ClientS_BOARD_ID=
+MONDAY_PACKAGES_BOARD_ID=

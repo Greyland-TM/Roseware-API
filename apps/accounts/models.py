@@ -4,9 +4,6 @@ from django.db.models import CharField, DateTimeField
 from phonenumber_field.modelfields import PhoneNumberField
 from django.apps import apps
 
-# from django.contrib.postgres.fields import ArrayField
-# from apps.ayrshare.models import SocialAccount
-
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     first_name = CharField(default="Joe", max_length=100)
@@ -14,7 +11,6 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.first_name
-
 
 class Customer(models.Model):
     """ This model represents a single customer """
@@ -41,7 +37,7 @@ class Customer(models.Model):
         from .utils import create_customer_sync, update_customer_sync
 
         is_new = self._state.adding
-        
+
         # If it's a new customer, set the first name, last name, and email to the user's
         if is_new:
             self.first_name = self.user.first_name
@@ -76,7 +72,14 @@ class Customer(models.Model):
         return self.first_name
 
 class OngoingSync(models.Model):
-    # customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True)
+    """
+    This object is here to fix one problem: If you think about triggering a sync to pipedrive,
+    When the object is saved, pipedrive will sent a webhook to the server, and the server will then update and save the object in our db.
+    There are some cases where this can trigger an infinate loop of webhooks, creating or modifying the same object over and over again.
+    So this object is here to keep track of the state of the sync, and to make sure that the sync is only triggered once.
+    It is created and deleted as the sync loop progresses, and is deleted when its done.
+    If you ever find an OngoingSyng object in the database, then something went wrong with either the code or the environment.
+    """
     type = CharField(default="", max_length=100, null=False, blank=False)
     created_at = DateTimeField(auto_now_add=True, null=True, blank=True)
     action = CharField(default="", max_length=100, null=False, blank=False)
