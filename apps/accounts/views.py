@@ -4,15 +4,17 @@
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
 from rest_framework import generics, status
+from rest_framework.authentication import (BasicAuthentication,
+                                           SessionAuthentication)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+
 from apps.pipedrive.tasks import sync_pipedrive
+
 from .models import Customer, Employee
-from .serializers import CustomerSerializer, LoginSerializer, UserSerializer, RegisterSerializer
-from rest_framework.authentication import (BasicAuthentication,
-                                           SessionAuthentication)
+from .serializers import (CustomerSerializer, LoginSerializer,
+                          RegisterSerializer, UserSerializer)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -117,10 +119,20 @@ class CustomerAPIView(APIView):
         try:
             # Check if the user has an employee attribute before trying to access it
             user = request.user
-            if not hasattr(user, 'employee') or not user.employee:
-
-                # If not, and the pk to update is not the user's pk, return an error
+            
+            try:
                 customer = Customer.objects.get(user=user)
+            except Customer.DoesNotExist:
+                return Response({"error": "Customer does not exist"}, status=404)
+
+            pk = request.GET.get("pk")
+            if pk is None:
+                return Response(
+                    {"ok": True, "customer": CustomerSerializer(customer).data}
+                )
+
+            if not hasattr(user, 'employee') or not user.employee:
+                # If not, and the pk to update is not the user's pk, return an error
                 if customer.pk != request.GET["pk"]:
                     return Response(
                         {"ok": False, "error": "Not Authorized"},
