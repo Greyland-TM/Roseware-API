@@ -2,7 +2,10 @@ from django.db import models
 import datetime
 
 class Day(models.Model):
-    """ This represents a day of the week, for a customers day selections """
+    """ 
+    This represents a day of the week, for a customers day selections.
+    I want to add 
+    """
 
     name = models.CharField(max_length=20, unique=True)
     index = models.IntegerField()

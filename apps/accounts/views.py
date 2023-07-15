@@ -4,15 +4,18 @@
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
 from rest_framework import generics, status
+from rest_framework.authentication import (BasicAuthentication,
+                                           SessionAuthentication)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+from knox.views import LogoutView as KnoxLogoutView
+
 from apps.pipedrive.tasks import sync_pipedrive
+
 from .models import Customer, Employee
-from .serializers import CustomerSerializer, LoginSerializer, UserSerializer, RegisterSerializer
-from rest_framework.authentication import (BasicAuthentication,
-                                           SessionAuthentication)
+from .serializers import (CustomerSerializer, LoginSerializer,
+                          RegisterSerializer, UserSerializer)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -24,16 +27,30 @@ class LoginAPIView(generics.GenericAPIView):
             serializer.is_valid(raise_exception=True)
             user = serializer.validated_data
             token = AuthToken.objects.create(user)[1]
-            print('New Token: ', token)
-            return Response(
+            return Response( 
                 {
                     "user": UserSerializer(user, context=self.get_serializer_context()).data,
                     "token": token,
                 }
             )
         except Exception as error:
-            print(f"Error: {error}")
+            print(f"Error logging in: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+class LogoutView(KnoxLogoutView):
+    """ I was having trouble with the knox logout view so I made my own """
+    
+    authentication_classes = [TokenAuthentication]
+
+    def post(self, request, format=None):
+        try:
+            super().post(request, format=None)
+            return Response({"ok": True, "message": "Successfully logged out."}, status=200)
+        except Exception as error:
+            print(f'Error logging out: {error}')
+            return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class CreateCustomerAPIView(APIView):
     """API view to create a customer"""
@@ -82,23 +99,18 @@ class CreateCustomerAPIView(APIView):
             
             if customer.status == "lead":
                 sync_pipedrive.delay(customer.pk, "create", "lead")
+            ## TODO - Else create a customer
                 
-            try:
-                print('\n* New user: ', user)
-                login_seralizer = LoginSerializer(data={"username": user.username, "password": password})
-                login_seralizer.is_valid(raise_exception=True)
-                user = login_seralizer.validated_data
-                token = AuthToken.objects.create(user)[1]
-                print('New Token: ', token)
-                return Response(
-                    {
-                        "user": UserSerializer(user).data,
-                        "token": token,
-                    }
-                )
-            except Exception as error:
-                print(f"Error: {error}")
-                return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            login_seralizer = LoginSerializer(data={"username": user.username, "password": password})
+            login_seralizer.is_valid(raise_exception=True)
+            user = login_seralizer.validated_data
+            token = AuthToken.objects.create(user)[1]
+            return Response(
+                {
+                    "user": UserSerializer(user).data,
+                    "token": token,
+                }
+            )
 
         except Exception as error:
             print(f"*** Error 2: {error}")
@@ -117,10 +129,20 @@ class CustomerAPIView(APIView):
         try:
             # Check if the user has an employee attribute before trying to access it
             user = request.user
-            if not hasattr(user, 'employee') or not user.employee:
-
-                # If not, and the pk to update is not the user's pk, return an error
+            
+            try:
                 customer = Customer.objects.get(user=user)
+            except Customer.DoesNotExist:
+                return Response({"error": "Customer does not exist"}, status=404)
+
+            pk = request.GET.get("pk")
+            if pk is None:
+                return Response(
+                    {"ok": True, "customer": CustomerSerializer(customer).data}
+                )
+
+            if not hasattr(user, 'employee') or not user.employee:
+                # If not, and the pk to update is not the user's pk, return an error
                 if customer.pk != request.GET["pk"]:
                     return Response(
                         {"ok": False, "error": "Not Authorized"},
