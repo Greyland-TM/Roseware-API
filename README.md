@@ -123,7 +123,7 @@ Integrations: This is where the user will connect their accounts to our system. 
 - Open up a terminal on the side somethere, you'll need at least 3.
 - In the first terminal, start your rabbitmq server => `sudo rabbitmq-server`
 - Open another new server and navigate to the root of this app,
-- From there run => `pipenv shell` then, `celery -A roseware worker -f roseware.log -l info` or `celery -A roseware worker -l INFO`
+- From there run => `pipenv shell` then, `celery -A roseware worker -f roseware.log -l info` or `celery -A roseware worker -l INFO`. Use the second for development.
 - Repeat the previous step but run this command => `pipenv shell` then, `celery -A roseware worker -B`. You only need to run this if you are testing the scheduled tasks.
   And now your done, and ready to starty using Celery!
 
