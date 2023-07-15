@@ -26,6 +26,7 @@ from apps.stripe.models import StripePaymentDetails
 
 import boto3
 from botocore.exceptions import ClientError
+from apps.accounts.models import Customer
 
 class PipedriveOauth(APIView):
     """
@@ -38,6 +39,10 @@ class PipedriveOauth(APIView):
         # Get the code from the request
         # print('In the requerst..')
         code = request.data.get('code')
+        user = request.user
+        customer = Customer.objects.get(user=user)
+        customer_pk = customer.pk
+        print(f'customer_pk: {customer_pk}')
         # print(f'got the code: {code}')
         # Get the pipedrive client id and secret from the environment variables
         client_id = os.environ.get('PIPEDRIVE_CLIENT_ID')
@@ -50,7 +55,7 @@ class PipedriveOauth(APIView):
             'code': code,
             'client_id': client_id,
             'client_secret': client_secret,
-            'redirect_uri': 'https://young-streets-grin.loca.lt/dashboard/'
+            'redirect_uri': 'https://curvy-chefs-happen.loca.lt/dashboard/'
         }
         response = requests.post(url, data=payload)
         print('Response: ', response.json())
@@ -71,21 +76,32 @@ class PipedriveOauth(APIView):
         print(f'client: {client}')
 
         try:
+            env = os.environ.get('DJANGO_ENV')
             get_secret_value_response = client.get_secret_value(
                 SecretId=secret_name
             )
-            print(f'get_secret_value_response: {get_secret_value_response["dev"]}')
+            secret_dict = json.loads(get_secret_value_response['SecretString'])
+            oauth_tokens = secret_dict["roseware-secrets"][env]["oauth-tokens"]
+            customer_key = str(customer_pk)
+            
+            if customer_key in oauth_tokens:
+                print(f"Credentials for customer {customer_key} already exist. Overwriting.")
+                
+            oauth_tokens[customer_key] = {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+            }
+            client.update_secret(
+                SecretId=secret_name,
+                SecretString=json.dumps(secret_dict),
+            )
+            return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
+            
         except ClientError as e:
             # For a list of exceptions thrown, see
             # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-            raise e
-
-        # Decrypts secret using the associated KMS key.
-        secret = get_secret_value_response['SecretString']
-        # Store the access token in amazon secrets manager
-        # Return the access token
-        return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
-
+            print('Error: ', e)
+            return Response({"ok": False, "message": "Error storing access token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Create your views here.

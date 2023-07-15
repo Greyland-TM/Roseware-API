@@ -1,48 +1,90 @@
 import os
-
+import boto3
 import requests
-
+import json
 from apps.accounts.models import Customer
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
+
+def get_user_tokens(customer_pk):
+    try:
+        secret_name = "roseware-secrets"
+        region_name = "us-east-2"
+        
+        # Create a Secrets Manager client
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='secretsmanager',
+            region_name=region_name
+        )
+        
+        env = os.environ.get('DJANGO_ENV')
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+        secret_dict = json.loads(get_secret_value_response['SecretString'])
+        oauth_tokens = secret_dict["roseware-secrets"][env]["oauth-tokens"]
+        customer_key = str(customer_pk)
+        
+        if customer_key in oauth_tokens:
+            user_tokens = oauth_tokens[customer_key]
+            return user_tokens  # This will return a dictionary with access_token and refresh_token
+            
+        else:
+            print(f"No stored tokens found for customer {customer_key}.")
+            return None
+
+    except Exception as e:
+        # Handle exceptions thrown by the AWS SDK for Python
+        print('Error: ', e)
+        return None
 
 """ CREATE CUSTOMER IN PIPEDRIVE """
 def create_pipedrive_customer(customer):
     try:
         # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+        user = customer.user
+        customer = Customer.objects.get(user=user)
+        customer_pk = customer.pk
+        user_tokens = get_user_tokens(customer_pk)
 
-        # Create the customer in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons?api_token={pipedrive_key}'
-        
-        pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
-        environment = os.environ.get('DJANGO_ENV')
-        if environment == 'production':
-            stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
+        if user_tokens is None:
+            print("Failed to retrieve user tokens")
         else:
-            stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
+            # Create the customer in Pipedrive
+            access_token = user_tokens['access_token']
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons'
+            headers = {
+                "Authorization": f"Bearer {access_token}"
+            }
+            pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
+            environment = os.environ.get('DJANGO_ENV')
+            if environment == 'production':
+                stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
+            else:
+                stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
 
-        body = {
-            'name': f'{customer.first_name} {customer.last_name}',
-            'email': f'{customer.email}',
-            'phone': f'{customer.phone}',
-            pipedrive_person_stripe_url_key: stripe_url,
-        }
-        response = requests.post(url, json=body)
+            body = {
+                'name': f'{customer.first_name} {customer.last_name}',
+                'email': f'{customer.email}',
+                'phone': f'{customer.phone}',
+                pipedrive_person_stripe_url_key: stripe_url,
+            }
+            response = requests.post(url, headers=headers, json=body)
 
-        # Check the response data and update the customers pipedrive id
-        data = response.json()
-        # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
-        customer_created = data['success']
+            # Check the response data and update the customers pipedrive id
+            data = response.json()
+            # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
+            customer_created = data['success']
 
-        if not customer_created:
-            print(f'\nCUSTOMER NOT CREATED IN PIPEDRIVE: {data}')
-            return False
-        pipedrive_customer_id = data['data']['id']
-        customer.pipedrive_id = pipedrive_customer_id
-        customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
-        return pipedrive_customer_id
+            if not customer_created:
+                print(f'\nCUSTOMER NOT CREATED IN PIPEDRIVE: {data}')
+                return False
+            pipedrive_customer_id = data['data']['id']
+            customer.pipedrive_id = pipedrive_customer_id
+            customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
+            return pipedrive_customer_id
     except Exception as e:
         print(e)
         return False

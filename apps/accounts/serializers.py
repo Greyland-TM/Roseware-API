@@ -19,7 +19,6 @@ class CustomerSerializer(serializers.ModelSerializer):
     representative = serializers.SerializerMethodField("get_rep")
 
     def get_rep(self, obj=None):
-        print('\n\nGetting rep: ', obj.rep)
         return obj.first_name + " " + obj.last_name
 
     class Meta:
