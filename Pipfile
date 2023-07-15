@@ -31,6 +31,8 @@ whitenoise = "*"
 django-storages = "*"
 boto3 = "*"
 pillow = "*"
+aws-secrets = "*"
+django-aws-secrets-manager = "*"
 
 [dev-packages]
 flake8 = "*"

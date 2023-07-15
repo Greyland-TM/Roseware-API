@@ -17,6 +17,15 @@ from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
 from apps.stripe.models import StripePaymentDetails
 
+# from aws_secrets import SECRETS
+
+# Use this code snippet in your app.
+# If you need more information about configurations
+# or implementing the sample code, visit the AWS docs:
+# https://aws.amazon.com/developer/language/python/
+
+import boto3
+from botocore.exceptions import ClientError
 
 class PipedriveOauth(APIView):
     """
@@ -27,7 +36,9 @@ class PipedriveOauth(APIView):
     
     def post(self, request):
         # Get the code from the request
+        # print('In the requerst..')
         code = request.data.get('code')
+        # print(f'got the code: {code}')
         # Get the pipedrive client id and secret from the environment variables
         client_id = os.environ.get('PIPEDRIVE_CLIENT_ID')
         client_secret = os.environ.get('PIPEDRIVE_CLIENT_SECRET')
@@ -39,13 +50,38 @@ class PipedriveOauth(APIView):
             'code': code,
             'client_id': client_id,
             'client_secret': client_secret,
-            'redirect_uri': 'https://loud-actors-look.loca.lt/dashboard/'
+            'redirect_uri': 'https://young-streets-grin.loca.lt/dashboard/'
         }
         response = requests.post(url, data=payload)
-        print('Response status: ', response.status_code)
-        print('Response content: ', response.content)
-        # access_token = response.json()['access_token']
-        # refresh_token = response.json()['refresh_token']
+        print('Response: ', response.json())
+        # print('Response status: ', response.status_code)
+        # print('Response content: ', response.content)
+        access_token = response.json()['access_token']
+        refresh_token = response.json()['refresh_token']
+        print(f'access_token: {access_token}')
+        print(f'refresh_token: {refresh_token}')
+        secret_name = "roseware-secrets"
+        region_name = "us-east-2"
+        # Create a Secrets Manager client
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='secretsmanager',
+            region_name=region_name
+        )
+        print(f'client: {client}')
+
+        try:
+            get_secret_value_response = client.get_secret_value(
+                SecretId=secret_name
+            )
+            print(f'get_secret_value_response: {get_secret_value_response["dev"]}')
+        except ClientError as e:
+            # For a list of exceptions thrown, see
+            # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+            raise e
+
+        # Decrypts secret using the associated KMS key.
+        secret = get_secret_value_response['SecretString']
         # Store the access token in amazon secrets manager
         # Return the access token
         return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
