@@ -15,8 +15,9 @@ from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.accounts.serializers import RegisterSerializer
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
-from apps.stripe.models import StripePaymentDetails
-
+from apps.stripe.models import StripeSubscription
+from apps.stripe.utils import setup_payment_details
+from .utils import create_pipedrive_webhooks, create_pipedrive_type_fields, create_pipedrive_stripe_url_fields
 # from aws_secrets import SECRETS
 
 # Use this code snippet in your app.
@@ -47,6 +48,7 @@ class PipedriveOauth(APIView):
         # Get the pipedrive client id and secret from the environment variables
         client_id = os.environ.get('PIPEDRIVE_CLIENT_ID')
         client_secret = os.environ.get('PIPEDRIVE_CLIENT_SECRET')
+        frontend_url = os.environ.get('FRONTEND_URL')
         # Define the URL
         url = 'https://oauth.pipedrive.com/oauth/token'
         # Define the payload
@@ -55,7 +57,7 @@ class PipedriveOauth(APIView):
             'code': code,
             'client_id': client_id,
             'client_secret': client_secret,
-            'redirect_uri': 'https://curvy-chefs-happen.loca.lt/dashboard/'
+            'redirect_uri': f'{frontend_url}/dashboard/'
         }
         response = requests.post(url, data=payload)
         print('Response: ', response.json())
@@ -67,6 +69,17 @@ class PipedriveOauth(APIView):
         print(f'refresh_token: {refresh_token}')
         secret_name = "roseware-secrets"
         region_name = "us-east-2"
+        
+        # Get the user id from Pipedrive API
+        url = 'https://api.pipedrive.com/v1/users/me'
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get(url, headers=headers)
+        pipedrive_user_id = response.json()['data']['id']
+
+        # Save the pipedrive_user_id to the customer
+        customer.pipedrive_user_id = pipedrive_user_id
+        customer.save()
+
         # Create a Secrets Manager client
         session = boto3.session.Session()
         client = session.client(
@@ -95,6 +108,52 @@ class PipedriveOauth(APIView):
                 SecretId=secret_name,
                 SecretString=json.dumps(secret_dict),
             )
+            
+            
+            # Create The Package Plan
+            package_plan, created = PackagePlan.objects.get_or_create(
+                customer=customer,
+                name=f'{customer.first_name} {customer.last_name} - Deal',
+                defaults={'status': 'active'}
+            )
+            setup_payment_details(customer=customer, payment_details={
+                "card_number": "4242424242424242",
+                "expiry_month": "01",
+                "expiry_year": "2025",
+                "cvc": "123",
+            }, package_plan=package_plan)
+            
+            package_template = ServicePackageTemplate.objects.get(name="Roseware - Pipedrive Stripe Sync")
+            
+            service_package = ServicePackage.objects.get_or_create(
+                customer=customer, 
+                package_template=package_template,
+                package_plan=package_plan,
+                cost=package_template.cost,
+            )
+                    
+            if not service_package:
+                return Response({"ok": False, "message": "Error creating service package."}, status=status.HTTP_400_BAD_REQUEST)
+
+            stripe_subscription = StripeSubscription(
+                customer=customer,
+                package_plan=package_plan,
+            )
+            stripe_subscription.save()
+            
+            # TODO: - Once the access and refresh tokens are stored in aws sectrets manager there are
+            # a few more things to set up:
+            # pipedrive_stripe_urls_created = create_pipedrive_stripe_url_fields()
+            # pipedrive_type_fields_created = create_pipedrive_type_fields()
+            # 1. Create the pipedrive webhooks for the customer
+            create_pipedrive_webhooks(access_token=access_token, customer=customer)
+            # 2: Create the new pipedrieve fields and store them on the customer model
+            #    - PIPEDRIVE_PERSON_STRIPE_URL_KEY
+            #    - PIPEDRIVE_PRODUCT_STRIPE_URL_KEY
+            #    - PIPEDRIVE_DEAL_STRIPE_URL_KEY
+            #    - PIPEDRIVE_DEAL_TYPE_FIELD
+            #    - PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR
+            #   -  PIPEDRIVE_DEAL_PAYOUT_SELECTOR
             return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
             
         except ClientError as e:

@@ -1,10 +1,195 @@
+import json
 import os
+
 import boto3
 import requests
-import json
+
 from apps.accounts.models import Customer
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
+
+
+def create_pipedrive_stripe_url_fields():
+    """ THIS CODE WORKS FOR SETTING ALL THE STRIPE URL FIELDS """
+    try:
+        pipedrive_api_key = os.environ.get('PIPEDRIVE_API_KEY')
+        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+        pipedrive_api_key = os.environ.get('PIPEDRIVE_STAGING_API_KEY')
+        pipedrive_domain = os.environ.get('PIPEDRIVE_STAGING_DOMAIN')
+        data = {
+            'name': 'stripe url',
+            'field_type': 'varchar'
+        }
+        
+        # Add stripe_url field to personFields
+        url = f'https://{pipedrive_domain}.pipedrive.com/v1/personFields?api_token={pipedrive_api_key}'
+        response = requests.post(url, data=data)
+        print(response.json())
+        person_key = response.json()['data']['key']
+        
+        # Add stripe_url field to dealFields
+        url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields?api_token={pipedrive_api_key}'
+        response = requests.post(url, data=data)
+        print(response.json())
+        deal_key = response.json()['data']['key']
+        
+        # Add stripe_url field to productFields
+        url = f'https://{pipedrive_domain}.pipedrive.com/v1/productFields?api_token={pipedrive_api_key}'
+        response = requests.post(url, data=data)
+        print(response.json())
+        product_key = response.json()['data']['key']
+        
+        # Print the keys
+        print(f"\n\nPerson Field Key: {person_key}")
+        print(f"Deal Field Key: {deal_key}")
+        print(f"Product Field Key: {product_key}")
+        
+    except Exception as error:
+        print(f"Failed to create custom fields: {error}")
+        return
+
+def create_pipedrive_type_fields():
+    """ THIS CODE CREATES THE "TYPE" FIELD """
+    pipedrive_api_key = os.environ.get('PIPEDRIVE_API_KEY')
+    pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+
+    # Define the choices for the "Type" field
+    choices = ['Subscription', 'Payout']
+
+    # Create the options dictionary for the "Type" field
+    options = [{'label': choice, 'active': True} for choice in choices]
+
+    # Define the data for creating the field
+    data = {
+        'name': 'Type',
+        'field_type': 'enum',
+        'options': options
+    }
+
+    # Add the "Type" field to dealFields
+    url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields?api_token={pipedrive_api_key}'
+    response = requests.post(url, json=data)
+    print(response.json())
+    print(response.status_code)
+
+    # Check the response status
+    field_id = response.json().get('data', {}).get('id')
+    if field_id:
+        # Update field settings to pin it to the deal creation form
+        update_url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields/{field_id}?api_token={pipedrive_api_key}'
+        update_data = {
+            'add_visible_flag': True,
+            'visible_to': [1],  # 1 represents the Deals section
+            'is_required': True
+        }
+        requests.put(update_url, json=update_data)
+        print('Created the "Type" field successfully!')
+
+def create_pipedrive_webhooks(access_token=None, customer=None):
+    try:
+        print("*** Setting Up New Pipedrive Webhooks***")
+
+        # Get the environment variables
+        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+        pipedrive_user_id = os.environ.get('PIPEDRIVE_USER_ID')
+        backend_url = os.environ.get('BACKEND_URL')
+        http_auth_user = os.environ.get('HTTP_AUTH_USER')
+        http_auth_pass = os.environ.get('HTTP_AUTH_PASSWORD')
+        current_webhooks = None
+        
+        print("Getting current webhooks...")
+        if not access_token:
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
+            current_webhooks_request = requests.get(url)
+            current_webhooks = current_webhooks_request.json()['data']
+        else:
+            try:
+                url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks'
+                headers = {
+                    'Authorization': f'Bearer {access_token}' if access_token else f'Bearer {pipedrive_key}',
+                }
+                current_webhooks_request = requests.get(url, headers=headers)
+                print('<<>><<> current_webhooks: ', current_webhooks_request.json())
+                current_webhooks = current_webhooks_request.json()['data']
+            except Exception as e:
+                print(f'\n* ERROR CREATING WEBHOOKS: {e}\n')
+
+        # Delete all current webhooks
+        print("Deleting current webhooks...")
+        for webhook in current_webhooks:
+            if not access_token:
+                url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks/{webhook["id"]}?api_token={pipedrive_key}'
+                requests.delete(url)
+            else:
+                try:
+                    url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks/{webhook["id"]}'
+                    headers = {
+                        'Authorization': f'Bearer {access_token}',
+                    }
+                    requests.delete(url, headers)
+                except Exception as e:
+                    print(f'\n* ERROR CREATING WEBHOOKS: {e}\n')
+
+        # Get all urls from ../urls.py
+        urls = [
+            ("pipedrive/customer-create-webhook/", "person", "added"),
+            ("pipedrive/customer-sync-webhook/", "person", "updated"),
+            ("pipedrive/customer-delete-webhook/", "person", "deleted"),
+            ("pipedrive/deal-create-webhook/", "deal", "added"),
+            ("pipedrive/deal-sync-webhook/", "deal", "updated"),
+            ("pipedrive/deal-delete-webhook/", "deal", "deleted"),
+            ("pipedrive/package-create-webhook/", "product", "added"),
+            ("pipedrive/package-sync-webhook/", "product", "updated"),
+            ("pipedrive/package-delete-webhook/", "product", "deleted"),
+        ]
+
+        # Get the environment variables
+        webhook_secret_token = os.environ.get("WEBHOOK_SECRET_TOKEN")
+
+        # Create new webhooks
+        print("Creating new webhooks...")
+        for url_path, object_type, event_action in urls:
+            url = f"{backend_url}/{url_path}"
+
+            # Construct the webhook data
+            data = {
+                "subscription_url": url,
+                "event_action": event_action,
+                "event_object": object_type,
+                "user_id": pipedrive_user_id,
+                "http_auth_user": http_auth_user,
+                "http_auth_password": http_auth_pass,
+                "headers": {
+                    "X-Webhook-Secret-Token": webhook_secret_token
+                }
+            }
+
+            # Send the webhook creation request
+            if not access_token:
+                url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
+                response = requests.post(url, data=data)
+                data = response.json()
+            else:
+                try:
+                    url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks'
+                    headers = {
+                        'Authorization': f'Bearer {access_token}' if access_token else f'Bearer {pipedrive_key}',
+                    }
+                    response = requests.post(url, headers=headers, data=data)
+                    data = response.json()
+                except Exception as e:
+                    print(f'\n* ERROR CREATING WEBHOOKS: {e}\n')
+
+            status = data['status']
+            if status == 'error':
+                print(f'{status}: {data}')
+            else:
+                print(status)
+
+        print('done')
+    except Exception as error:
+        print(f'\n* WEBHOOKS FAILED WITH ERROR: {error}\n')
 
 def get_user_tokens(customer_pk):
     try:
@@ -43,48 +228,39 @@ def get_user_tokens(customer_pk):
 def create_pipedrive_customer(customer):
     try:
         # Get the environment variables
-        user = customer.user
-        customer = Customer.objects.get(user=user)
-        customer_pk = customer.pk
-        user_tokens = get_user_tokens(customer_pk)
+        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
 
-        if user_tokens is None:
-            print("Failed to retrieve user tokens")
+        # Create the customer in Pipedrive
+        url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons?api_token={pipedrive_key}'
+        
+        pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
+        environment = os.environ.get('DJANGO_ENV')
+        if environment == 'production':
+            stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
         else:
-            # Create the customer in Pipedrive
-            access_token = user_tokens['access_token']
-            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons'
-            headers = {
-                "Authorization": f"Bearer {access_token}"
-            }
-            pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
-            environment = os.environ.get('DJANGO_ENV')
-            if environment == 'production':
-                stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
-            else:
-                stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
+            stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
 
-            body = {
-                'name': f'{customer.first_name} {customer.last_name}',
-                'email': f'{customer.email}',
-                'phone': f'{customer.phone}',
-                pipedrive_person_stripe_url_key: stripe_url,
-            }
-            response = requests.post(url, headers=headers, json=body)
+        body = {
+            'name': f'{customer.first_name} {customer.last_name}',
+            'email': f'{customer.email}',
+            'phone': f'{customer.phone}',
+            pipedrive_person_stripe_url_key: stripe_url,
+        }
+        response = requests.post(url, json=body)
 
-            # Check the response data and update the customers pipedrive id
-            data = response.json()
-            # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
-            customer_created = data['success']
+        # Check the response data and update the customers pipedrive id
+        data = response.json()
+        # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
+        customer_created = data['success']
 
-            if not customer_created:
-                print(f'\nCUSTOMER NOT CREATED IN PIPEDRIVE: {data}')
-                return False
-            pipedrive_customer_id = data['data']['id']
-            customer.pipedrive_id = pipedrive_customer_id
-            customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
-            return pipedrive_customer_id
+        if not customer_created:
+            print(f'\nCUSTOMER NOT CREATED IN PIPEDRIVE: {data}')
+            return False
+        pipedrive_customer_id = data['data']['id']
+        customer.pipedrive_id = pipedrive_customer_id
+        customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
+        return pipedrive_customer_id
     except Exception as e:
         print(e)
         return False
