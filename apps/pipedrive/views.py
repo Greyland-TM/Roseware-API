@@ -3,53 +3,123 @@ import os
 import time
 from decimal import ROUND_HALF_UP, Decimal
 
+import boto3
 import requests
 import stripe
+from botocore.exceptions import ClientError
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from knox.auth import TokenAuthentication
 from apps.accounts.custom_auth import WebhookAuthentication
 from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.accounts.serializers import RegisterSerializer
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
-from apps.stripe.models import StripePaymentDetails
+from apps.stripe.models import StripeSubscription
+from apps.stripe.utils import setup_payment_details
+
+from .utils import (create_pipedrive_stripe_url_fields, set_pipedrive_keys,
+                    create_pipedrive_type_fields, create_pipedrive_webhooks)
+
+# from aws_secrets import SECRETS
+
+# Use this code snippet in your app.
+# If you need more information about configurations
+# or implementing the sample code, visit the AWS docs:
+# https://aws.amazon.com/developer/language/python/
 
 
 class PipedriveOauth(APIView):
     """
-    IN PROGRESS...
     This view will recieve a code from an oauth redirect from pipedrive.
     The code will be used to get an access token, which will be stored with amazon secretcs manager.
     """
-    
-    def post(self, request):
-        # Get the code from the request
-        code = request.data.get('code')
-        # Get the pipedrive client id and secret from the environment variables
-        client_id = os.environ.get('PIPEDRIVE_CLIENT_ID')
-        client_secret = os.environ.get('PIPEDRIVE_CLIENT_SECRET')
-        # Define the URL
-        url = 'https://oauth.pipedrive.com/oauth/token'
-        # Define the payload
-        payload = {
-            'grant_type': 'authorization_code',
-            'code': code,
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'redirect_uri': 'https://loud-actors-look.loca.lt/dashboard/'
-        }
-        response = requests.post(url, data=payload)
-        print('Response status: ', response.status_code)
-        print('Response content: ', response.content)
-        # access_token = response.json()['access_token']
-        # refresh_token = response.json()['refresh_token']
-        # Store the access token in amazon secrets manager
-        # Return the access token
-        return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
 
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    def post(self, request):
+        try:
+            # Set base variables
+            user = request.user
+            code = request.data.get('code')
+            customer = Customer.objects.get(user=user)
+            frontend_url = os.environ.get('FRONTEND_URL')
+            client_id = os.environ.get('PIPEDRIVE_CLIENT_ID')
+            client_secret = os.environ.get('PIPEDRIVE_CLIENT_SECRET')
+
+            # Get the customers Oauth tokens from pipedrive
+            url = 'https://oauth.pipedrive.com/oauth/token'
+            payload = {
+                'grant_type': 'authorization_code',
+                'code': code,
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'redirect_uri': f'{frontend_url}/dashboard'
+            }
+            response = requests.post(url, data=payload)
+            data = response.json()
+            piprdrive_api_url = data['api_domain']
+
+            # Check if the response was successful and set the access and refresh tokens
+            if 'success' in data and not data['success']:
+                print(f'Failed to get Oauth tokens from Pipedrive. {data}')
+                return Response({"ok": False, "message": "Error getting access token."}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                access_token = data['access_token']
+                refresh_token = data['refresh_token']
+                set_pipedrive_keys(customer.pk, access_token, refresh_token)
+
+            # Get the users Pipedrive id and save it to the customer
+            url = 'https://api.pipedrive.com/v1/users/me'
+            headers = {'Authorization': f'Bearer {access_token}'}
+            response = requests.get(url, headers=headers)
+            pipedrive_user_id = response.json()['data']['id']
+            customer.pipedrive_user_id = pipedrive_user_id
+            customer.piprdrive_api_url = piprdrive_api_url
+            customer.save()
+
+            # Get or create The Package Plan
+            package_plan, created = PackagePlan.objects.get_or_create(
+                customer=customer,
+                name=f'{customer.first_name} {customer.last_name} - Deal',
+                defaults={'status': 'active'}
+            )
+            package_template = ServicePackageTemplate.objects.get(name="Roseware - Pipedrive Stripe Sync")
+            if created:
+                setup_payment_details(customer=customer, payment_details={
+                    "card_number": "4242424242424242",
+                    "expiry_month": "01",
+                    "expiry_year": "2025",
+                    "cvc": "123",
+                }, package_plan=package_plan)
+
+                service_package = ServicePackage.objects.get_or_create(
+                    customer=customer,
+                    package_template=package_template,
+                    package_plan=package_plan,
+                    cost=package_template.cost,
+                )
+   
+                if not service_package:
+                    return Response({"ok": False, "message": "Error creating service package."}, status=status.HTTP_400_BAD_REQUEST)
+
+                stripe_subscription = StripeSubscription(
+                    customer=customer,
+                    package_plan=package_plan,
+                )
+                stripe_subscription.save()
+
+            create_pipedrive_webhooks(access_token, customer)
+            create_pipedrive_type_fields(customer.pk)
+            create_pipedrive_stripe_url_fields(customer.pk)
+
+            return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f'Error getting Oauth tokens from Pipedrive: {e}')
+            return Response({"ok": False, "message": "Error getting access token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Create your views here.
@@ -299,22 +369,18 @@ class CustomerSyncWebhook(APIView):
 
     def post(self, request):
         try:
-            print('Im the webhook...')
             # Simetimes the webhooks come in too fast,
             # so we need to wait a second to make sure the OnGoingSync object is created
             time.sleep(1)
             # Check if we should stop processing pipedrive webhooks
-            print('checking toggles...')
             stop_pipedrive_webhooks = Toggles.objects.filter(name='Toggles').first()
             if stop_pipedrive_webhooks.stop_pipedrive_webhooks:
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
-            print('getting data...')
             request_data = request.data
             pipedrive_id = request_data["current"]["id"]
             customer = Customer.objects.filter(pipedrive_id=pipedrive_id).first()
 
-            print('checking for ongoing sync...')
             # Check if the webhook is being sent as a result of a sync
             ongoing_sync = OngoingSync.objects.filter(type='customer', action='update').first()
             if ongoing_sync:
@@ -322,7 +388,6 @@ class CustomerSyncWebhook(APIView):
                 ongoing_sync.save()
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
-            print('Setting customer data...')
             pipedrive_email = request_data['current']['email'][0]['value']
             pipedrive_first_name = request_data['current']['first_name']
             pipedrive_last_name = request_data['current']['last_name']
@@ -330,7 +395,6 @@ class CustomerSyncWebhook(APIView):
 
             # Check if the customer data is the same as the data in the webhook
             # If it is, then we don't need to update the customer
-            print('checking if customer data is the same...')
             try:
                 is_first_name_same = customer.first_name == pipedrive_first_name
                 is_last_name_same = customer.last_name == pipedrive_last_name
@@ -347,12 +411,10 @@ class CustomerSyncWebhook(APIView):
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
             # Update customer data
-            print('updating customer data...')
             customer.first_name = request_data["current"]["first_name"]
             customer.last_name = request_data["current"]["last_name"]
             customer.email = request_data["current"]["email"][0]["value"]
             customer.phone = request_data["current"]["phone"][0]["value"]
-            print('saving customer...')
             customer.save(should_sync_pipedrive=False)
 
             return Response(status=status.HTTP_200_OK, data={"ok": True})
@@ -471,7 +533,7 @@ class DealSyncWebhook(APIView):
 
             # Compare the products
             service_package_products = ServicePackage.objects.filter(package_plan=package_plan)
-            if len(service_package_products) != len(deal_products):
+            if not service_package_products or not deal_products or len(service_package_products) != len(deal_products):
                 return False
 
             # Compare the products
@@ -580,6 +642,7 @@ class DealSyncWebhook(APIView):
                 return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR, data={"ok": False, "message": "Failed to retrieve customer payment methods."})
 
             # Set up the Stripe Subscription or Payout
+            # greyland
             subscription_selector = os.environ.get("PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR")
             payout_selector = os.environ.get("PIPEDRIVE_DEAL_PAYOUT_SELECTOR")
             print('type_value: ', type_value)

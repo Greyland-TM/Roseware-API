@@ -23,7 +23,6 @@ logger = make_logger()
 
 @app.task(default_retry_delay=10, max_retries=3, autoretry_for=(Exception, ))
 def sync_stripe(pk, action, type):
-    logger.info('running sync_stripe')
     try:
         if type == 'customer':
 
