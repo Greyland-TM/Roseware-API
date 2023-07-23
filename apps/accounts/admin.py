@@ -32,7 +32,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         if not obj:  # Create form
-            kwargs['exclude'] = ('first_name', 'last_name', 'email')
+            kwargs['exclude'] = ('first_name', 'last_name', 'email', 'PIPEDRIVE_PERSON_STRIPE_URL_KEY', 'PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR')
         return super().get_form(request, obj, **kwargs)
 
 

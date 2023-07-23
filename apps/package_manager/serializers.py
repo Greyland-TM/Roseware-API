@@ -17,19 +17,19 @@ class ServicePackageTemplateSerializer(serializers.ModelSerializer):
 
 class PackagePlanSerializer(serializers.ModelSerializer):
     """Serializer for package plans"""
-    # service_packages = ServicePackageTemplateSerializer("get_service_packages")
+    service_packages = serializers.SerializerMethodField()
 
-    # def get_service_packages(self, obj=None):
-    #     """Serializing the service packages"""
-    #     service_packages = ServicePackageTemplate.objects.filter(package_plan=obj)
-    #     return ServicePackageTemplateSerializer(service_packages, many=True).data
+    def get_service_packages(self, obj=None):
+        """Serializing the service packages"""
+        service_packages = ServicePackage.objects.filter(package_plan=obj)
+        return ServicePackageSerializer(service_packages, many=True).data
 
     class Meta:
         """Meta class for PackagePlanSerializer"""
 
         model = PackagePlan
-        # TODO - Add the service packages on the serializer
-        fields = ("id", "name", "status", "type", "description", "billing_cycle")
+        fields = ("id", "name", "status", "type", "description", "billing_cycle", "service_packages")
+
 
 
 # TODO - This serializer is broken, and not used anywhere
