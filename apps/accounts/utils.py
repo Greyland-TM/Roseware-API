@@ -94,9 +94,6 @@ def update_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
     # Check for an ongoing sync
     print('Updating or creating ongoing sync...')
     update_or_create_ongoing_sync('customer', 'update', should_sync_stripe, should_sync_pipedrive, sync_platform)
-    print('Done updating or creating ongoing sync...')
-    print(f'should_sync_pipedrive: {should_sync_pipedrive}')
-    print(f'should_sync_stripe: {should_sync_stripe}')
     # Update the customer
     if should_sync_pipedrive:
         print('Updating customer to pipedrive... (Check celery terminal)')

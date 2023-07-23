@@ -86,7 +86,7 @@ def sync_pipedrive(pk, action, type):
             elif action == 'update':
                 was_deal_updated = update_pipedrive_deal(package_plan)
                 if not was_deal_updated:
-                    logger.error('*** Failed to update deal in Pipedrive ***')
+                    logger.error('*** Failed to update deal (normal deal) in Pipedrive ***')
                 return was_deal_updated
 
             # *** Delete Existing Pipedrive Deal ***
@@ -110,7 +110,7 @@ def sync_pipedrive(pk, action, type):
             elif action == 'update':
                 was_deal_updated = update_pipedrive_service_package(service_package)
                 if not was_deal_updated:
-                    logger.error('*** Failed to update deal in Pipedrive ***')
+                    logger.error('*** Failed to update deal (service_package) in Pipedrive ***')
                 return was_deal_updated
 
             # *** Delete Existing Pipedrive Deal ***

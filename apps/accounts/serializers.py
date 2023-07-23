@@ -1,7 +1,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
-
 from apps.accounts.models import Customer, Employee
 
 User._meta.get_field("email")._unique = True
@@ -17,10 +16,16 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
 class CustomerSerializer(serializers.ModelSerializer):
     representative = serializers.SerializerMethodField("get_rep")
+    package_plans = serializers.SerializerMethodField("get_package_plans")
 
     def get_rep(self, obj=None):
-        print('\n\nGetting rep: ', obj.rep)
         return obj.first_name + " " + obj.last_name
+    
+    def get_package_plans(self, obj=None):
+        from apps.package_manager.models import PackagePlan
+        from apps.package_manager.serializers import PackagePlanSerializer
+        package_plans = PackagePlan.objects.filter(customer=obj)
+        return PackagePlanSerializer(package_plans, many=True).data
 
     class Meta:
         model = Customer
@@ -33,6 +38,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "status",
             "onboarding_date",
             "representative",
+            "package_plans",
         )
 
 
