@@ -26,13 +26,11 @@ def setup_payment_details(customer, payment_details, package_plan):
         )
         stripe_payment_method.save()
 
-        print('Creating Stripe Subscription...')
         stripe_subscription = StripeSubscription(
             customer=customer,
             package_plan=package_plan,
             # payment_details=stripe_payment_method
         )
-        print('Stripe Subscription: ', stripe_subscription.stripe_subscription_id)
         stripe_subscription.save()
         return stripe_subscription
 
@@ -129,13 +127,11 @@ def create_stripe_customer(customer):
         
         # Create a Stripe Customer
         name = f'{customer.first_name} {customer.last_name}'
-        print(f"Creating customer for {name} ({customer.email})")
         stripe_customer = stripe.Customer.create(
             name=name,
             email=customer.email,
             phone=customer.phone,
         )
-        print('stripe_customer', stripe_customer)
         stripe_customer_id = stripe_customer['id']
         if not stripe_customer_id:
             print("Could not get customer ID from Stripe.")
@@ -143,7 +139,6 @@ def create_stripe_customer(customer):
             
         customer.stripe_customer_id = stripe_customer_id
         customer.save(should_sync_stripe=False)
-        print('DONE, customer id saved.')
         return True
     except Exception as error:
         print(f"Error: {error}")
@@ -248,7 +243,6 @@ def delete_stripe_payment_method(stripe_id):
 def create_stripe_subscription(subscription):
     stripe.api_key = os.environ.get('STRIPE_PRIVATE')
     try:
-        print('Creating Stripe Subscription...')
         # print('Creating Stripe Subscription...')
         # Get all packages associated with the package plan
         package_plan = subscription.package_plan
@@ -257,7 +251,6 @@ def create_stripe_subscription(subscription):
         # Add the subscription item to the list of items for the subscription
         customer = subscription.customer
         items = []
-        print('Creating Stripe Subscription Items...')
         for service_package in service_packages:
 
             # Create a Stripe Price
@@ -276,21 +269,19 @@ def create_stripe_subscription(subscription):
             })
 
         # Create a subscription on Stripe
-        print(f'Creating a subscription for {customer.first_name} {customer.last_name}')
         new_subscription = stripe.Subscription.create(
             customer=customer.stripe_customer_id,
             items=items,
             collection_method="charge_automatically",
             # off_session=off_session,
         )
-        print('made the subscription: ')
         subscription_id = new_subscription['id']
 
         subscription.stripe_subscription_id = subscription_id
         package_plan.stripe_subscription_id = subscription_id
         subscription.save(should_sync_stripe=False)
         package_plan.save(should_sync_stripe=False, should_sync_pipedrive=True)
-        print('saved the subscription: ')
+        
         # save the subscription item id and price id to the ServicePackage
         data = new_subscription['items']['data']
         for service_package in service_packages:

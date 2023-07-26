@@ -1,8 +1,9 @@
+from django.apps import apps
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import CharField, DateTimeField
 from phonenumber_field.modelfields import PhoneNumberField
-from django.apps import apps
+
 
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -17,6 +18,7 @@ class Customer(models.Model):
 
     # Choices
     STATUS_CHOICE_FIELDS = (('lead', 'Lead'), ('customer', 'Customer'))
+    # TYPE_CHOICE_FIELDS = (('client', 'Client'), ('contact', 'Contact'))
 
     # Fields
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -25,13 +27,26 @@ class Customer(models.Model):
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
     phone = PhoneNumberField(null=True, blank=True)
+    # type = CharField(default="client", max_length=100, choices=TYPE_CHOICE_FIELDS, null=True, blank=True)
     status = CharField(default="lead", max_length=100, choices=STATUS_CHOICE_FIELDS)
     onboarding_date = DateTimeField(null=True, blank=True)
     monday_id = CharField(default="", max_length=100, null=True, blank=True)
     pipedrive_id = CharField(default="", max_length=100, null=True, blank=True)
+    pipedrive_user_id = CharField(default="", max_length=100, null=True, blank=True)
+    piprdrive_api_url = CharField(max_length=100, null=True, blank=True, default="")
     stripe_customer_id = CharField(default="", max_length=100, null=True, blank=True)
     original_sync_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     last_synced_from = CharField(max_length=100, null=True, blank=True, default="roseware")
+    PIPEDRIVE_PERSON_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_TYPE_FIELD = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_PAYOUT_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_PROCESSING_FIELD = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_INVOICE_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
+    PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
+    
 
     def save(self, should_sync_stripe=True, should_sync_pipedrive=True, *args, **kwargs):
         from .utils import create_customer_sync, update_customer_sync
@@ -90,26 +105,26 @@ class OngoingSync(models.Model):
     has_recieved_stripe_webhook = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        print(
-            f"* Saving OngoingSync object,"
-            f" stop_pipedrive_webhook: {self.stop_pipedrive_webhook},"
-            f" has_recieved_stripe_webhook: {self.has_recieved_stripe_webhook}\n"
-        )
+        # print(
+        #     f"* Saving OngoingSync object,"
+        #     f" stop_pipedrive_webhook: {self.stop_pipedrive_webhook},"
+        #     f" has_recieved_stripe_webhook: {self.has_recieved_stripe_webhook}\n"
+        # )
 
         is_new = self._state.adding
         if is_new:
-            print(
-                f"* Created OngoingSync object, "
-                f" stop_pipedrive_webhook: {self.stop_pipedrive_webhook}, "
-                f"has_recieved_stripe_webhook{self.has_recieved_stripe_webhook}\n"
-            )
+            # print(
+            #     f"* Created OngoingSync object, "
+            #     f" stop_pipedrive_webhook: {self.stop_pipedrive_webhook}, "
+            #     f"has_recieved_stripe_webhook{self.has_recieved_stripe_webhook}\n"
+            # )
             self.has_recieved_pipedrive_webhook = self.stop_pipedrive_webhook
             self.has_recieved_stripe_webhook = self.stop_stripe_webhook
         super(OngoingSync, self).save(*args, **kwargs)
 
         # If both webhooks have been received, delete the object and return True
         if self.has_recieved_pipedrive_webhook and self.has_recieved_stripe_webhook:
-            print("* Deleted OngoingSync object \n")
+            # print("* Deleted OngoingSync object \n")
             self.delete()
             return True
 
