@@ -52,16 +52,17 @@ class PipedriveOauth(APIView):
 
             # Get the customers Oauth tokens from pipedrive
             url = 'https://oauth.pipedrive.com/oauth/token'
+            print(f'redirect_uri: {frontend_url}/dashboard/integrations')
             payload = {
                 'grant_type': 'authorization_code',
                 'code': code,
                 'client_id': client_id,
                 'client_secret': client_secret,
-                'redirect_uri': f'{frontend_url}/dashboard'
+                'redirect_uri': f'{frontend_url}/dashboard/integrations'
             }
             response = requests.post(url, data=payload)
             data = response.json()
-            piprdrive_api_url = data['api_domain']
+            print(f'Pipedrive Oauth response: {data}')
 
             # Check if the response was successful and set the access and refresh tokens
             if 'success' in data and not data['success']:
@@ -71,6 +72,8 @@ class PipedriveOauth(APIView):
                 access_token = data['access_token']
                 refresh_token = data['refresh_token']
                 set_pipedrive_keys(customer.pk, access_token, refresh_token)
+            
+            piprdrive_api_url = data['api_domain']
 
             # Get the users Pipedrive id and save it to the customer
             url = 'https://api.pipedrive.com/v1/users/me'

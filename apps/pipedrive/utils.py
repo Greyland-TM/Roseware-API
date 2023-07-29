@@ -433,8 +433,10 @@ def update_pipedrive_customer(customer):
             'phone': f'{customer.phone}',
             pipedrive_person_stripe_url_key: stripe_url,
         }
+        print(f'Update customer in Pipedrive: {body}')
         response = requests.put(url, json=body)
         data = response.json()
+        print('Pipedrive response: ', data)
         was_updated = data['success']
 
         if not was_updated:

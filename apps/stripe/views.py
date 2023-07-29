@@ -368,7 +368,8 @@ class SubscriptionCreateWebhook(APIView):
             return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
         package_plan = {
-            'billing_cycle': subscription['plan']['interval'],
+            # 'billing_cycle': subscription['plan']['interval'],
+            'type': 'subscription',
             'status': subscription['status'],
             'description': "New Customer Package Plan",
             'stripe_subscription_id': subscription_id,
