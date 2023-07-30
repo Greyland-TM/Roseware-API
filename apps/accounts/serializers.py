@@ -39,6 +39,8 @@ class CustomerSerializer(serializers.ModelSerializer):
             "onboarding_date",
             "representative",
             "package_plans",
+            "has_synced_pipedrive",
+            "has_synced_stripe",
         )
 
 

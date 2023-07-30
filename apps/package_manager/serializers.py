@@ -36,24 +36,12 @@ class PackagePlanSerializer(serializers.ModelSerializer):
 class ServicePackageSerializer(serializers.ModelSerializer):
     """Serializer for service packages"""
 
-    package_plan = serializers.SerializerMethodField("get_package_plan")
-
-    def get_package_plan(self, obj=None):
-        """Serializing the package plan"""
-        try:
-            from .serializers import PackagePlanSerializer
-            package_plan = obj.package_plan
-            return PackagePlanSerializer(package_plan).data
-        except:
-            return None
-
     class Meta:
         """Meta class for ServicePackageSerializer"""
 
         model = ServicePackage
         fields = (
             "id",
-            "package_plan",
             "related_app",
             "type",
             "is_active",

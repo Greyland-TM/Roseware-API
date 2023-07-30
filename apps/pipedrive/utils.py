@@ -1,9 +1,38 @@
+import base64
 import json
 import os
+
 import boto3
 import requests
-import base64
+
 from apps.accounts.models import Customer
+
+
+def get_pipedrive_oauth_tokens(customer_pk):
+    # Initialize the AWS Secrets Manager client
+    secret_name = "roseware-secrets"
+    region_name = "us-east-2"
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    # Get the access and refresh tokens
+    try:
+        response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except Exception as e:
+        print("Error retrieving tokens: ", e)
+        return False
+
+    env = os.environ.get('DJANGO_ENV')
+    secrets = json.loads(response['SecretString'])
+    access_token = secrets["roseware-secrets"][env]["oauth-tokens"][str(customer_pk)]['access_token']
+    refresh_token = secrets["roseware-secrets"][env]["oauth-tokens"][str(customer_pk)]['refresh_token']
+
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 def set_pipedrive_keys(customer_pk, access_token, refresh_token):
     # Create a Secrets Manager client
@@ -66,30 +95,9 @@ def create_pipedrive_stripe_url_fields(customer_pk):
             'field_type': 'varchar'
         }
 
-        # Initialize the AWS Secrets Manager client
-        secret_name = "roseware-secrets"
-        region_name = "us-east-2"
-        session = boto3.session.Session()
-        client = session.client(
-            service_name='secretsmanager',
-            region_name=region_name
-        )
-
-        # Get the access and refresh tokens
-        try:
-            response = client.get_secret_value(
-                SecretId=secret_name
-            )
-        except Exception as e:
-            print("Error retrieving tokens: ", e)
-            return False
-
-        env = os.environ.get('DJANGO_ENV')
-        secrets = json.loads(response['SecretString'])
-        access_token = secrets["roseware-secrets"][env]["oauth-tokens"][str(customer_pk)]['access_token']
-        refresh_token = secrets["roseware-secrets"][env]["oauth-tokens"][str(customer_pk)]['refresh_token']
+        tokens = get_pipedrive_oauth_tokens(customer_pk)
         headers = {
-            'Authorization': f'Bearer {access_token}',
+            'Authorization': f'Bearer {tokens["access_token"]}',
         }
 
         try:
@@ -108,12 +116,8 @@ def create_pipedrive_stripe_url_fields(customer_pk):
             response = requests.post(url, data=data, headers=headers)
             product_key = response.json()['data']['key']
         except Exception as error:
-            new_tokens = refresh_pipedrive_tokens(customer_pk, refresh_token)
-            if new_tokens:
-                create_pipedrive_stripe_url_fields(customer_pk)
-                return True
-            else:
-                return False
+            print('Error creating custom fields: ', error)
+            return False
 
         # Print the keys
         customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY = person_key
@@ -296,7 +300,10 @@ def create_pipedrive_webhooks(access_token=None, customer=None):
         # Create new webhooks
         print("Creating new webhooks...")
         for url_path, object_type, event_action in urls:
-            url = f"{backend_url}/{url_path}"
+            if customer and customer.pk:
+                url = f"{backend_url}/{url_path}?pk={customer.pk}"
+            else:
+                url = f"{backend_url}/{url_path}"
 
             # Construct the webhook data
             data = {
@@ -374,30 +381,52 @@ def get_user_tokens(customer_pk):
 """ CREATE CUSTOMER IN PIPEDRIVE """
 def create_pipedrive_customer(customer):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
         # Create the customer in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons?api_token={pipedrive_key}'
+        # If the owner of the customer is a staff member, use the API key
+        # Otherwise, use the OAuth token
+        headers = None
+        print('\n\n!! HERE !!\n** Creating nerw customer... ')
+        print(customer.owner)
+        if customer.owner.is_staff:
+            print('chouls see this')
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons?api_token={pipedrive_key}'
+            pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
+        else:
+            print('chouls should not see this')
+            pipedrive_person_stripe_url_key = customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY
+            url = f'{pipedrive_domain}/v1/persons'
+            pipedrive_domain = customer.piprdrive_api_url
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
         
-        pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
+        # Create the url that will be used to link the customer to Stripe
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
 
+        # Make the request to create the customer in Pipedrive
         body = {
             'name': f'{customer.first_name} {customer.last_name}',
             'email': f'{customer.email}',
             'phone': f'{customer.phone}',
             pipedrive_person_stripe_url_key: stripe_url,
         }
-        response = requests.post(url, json=body)
+        print('body: ', body)
+        print('url: ', url)
+        if headers:
+            response = requests.post(url, json=body, headers=headers)
+        else:
+            response = requests.post(url, json=body)
 
         # Check the response data and update the customers pipedrive id
         data = response.json()
+        print('checking data: ', data)
         # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
         customer_created = data['success']
 
@@ -415,35 +444,53 @@ def create_pipedrive_customer(customer):
 """ UPDATE CUSTOMER IN PIPEDRIVE """
 def update_pipedrive_customer(customer):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
-        # Update Customer in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{customer.pipedrive_id}?api_token={pipedrive_key}'
-        pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
+        # Create the customer in Pipedrive
+        # If the owner of the customer is a staff member, use the API key
+        # Otherwise, use the OAuth token
+        headers = None
+        if customer.owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{customer.pipedrive_id}?api_token={pipedrive_key}'
+            pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
+        else:
+            pipedrive_person_stripe_url_key = customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY
+            pipedrive_domain = customer.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/persons{customer.pipedrive_id}'
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+        
+        # Create the url that will be used to link the customer to Stripe
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
+          
+        
+        # Make the request to create the customer in Pipedrive
         body = {
             'name': f'{customer.first_name} {customer.last_name}',
             'email': f'{customer.email}',
             'phone': f'{customer.phone}',
             pipedrive_person_stripe_url_key: stripe_url,
         }
-        response = requests.put(url, json=body)
+        if headers:
+            response = requests.put(url, json=body, headers=headers)
+        else:
+            response = requests.put(url, json=body)
+
         data = response.json()
         was_updated = data['success']
-
         if not was_updated:
             print(f'\nCUSTOMER NOT UPDATED IN PIPEDRIVE: {data}')
             return False
 
         return was_updated
     except Exception as e:
-        print(e)
+        print(f'Failed with error: {e}')
         return False
 
 """ DELETE CUSTOMER IN PIPEDRIVE """
@@ -502,18 +549,32 @@ def create_pipedrive_lead(customer):
 """ CREATE PACKAGE IN PIPEDRIVE """
 def create_pipedrive_package_template(package):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+        # Update Packeag in Pipedrive
+        # If the owner of the package is a staff member, use the API key
+        # Otherwise, use the OAuth token
+        headers = None
+        if package.owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}?api_token={pipedrive_key}'
+            pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
+        else:
+            pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}'
+            pipedrive_domain = package.owner.piprdrive_api_url
+            tokens = get_pipedrive_oauth_tokens(package.owner.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
 
-        # Create the package in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}'
-        pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
+        # Create the url that will be used to link the package to Stripe
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/products/{package.stripe_product_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/products/{package.stripe_product_id}'
+            
+        # Make the request to create the package in Pipedrive
         body = {
             "name": package.name,
             'code': str(package.pk),
@@ -523,7 +584,10 @@ def create_pipedrive_package_template(package):
             ],
             pipedrive_product_stripe_url_key: stripe_url
         }
-        response = requests.post(url, json=body)
+        if headers:
+            response = requests.post(url, json=body, headers=headers)
+        else:
+            response = requests.post(url, json=body)
         data = response.json()
         package_created = data['success']
 
@@ -544,18 +608,32 @@ def create_pipedrive_package_template(package):
 
 def update_pipedrive_package_template(package_template):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
         # Update Packeag in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{package_template.pipedrive_id}?api_token={pipedrive_key}'
-        pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
+        # If the owner of the package is a staff member, use the API key
+        # Otherwise, use the OAuth token
+        headers = None
+        if package_template.owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{package_template.pipedrive_id}?api_token={pipedrive_key}'
+            pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
+        else:
+            pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{package_template.pipedrive_id}'
+            pipedrive_domain = package_template.owner.piprdrive_api_url
+            tokens = get_pipedrive_oauth_tokens(package_template.owner.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+        
+        # Set the stripe url
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/products/{package_template.stripe_product_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/products/{package_template.stripe_product_id}'
+            
+        # Make the request
         body = {
             'name': package_template.name,
             'description': package_template.description,
@@ -566,10 +644,13 @@ def update_pipedrive_package_template(package_template):
             ],
             pipedrive_product_stripe_url_key: stripe_url
         }
-        response = requests.put(url, json=body)
+        if headers:
+            response = requests.put(url, json=body, headers=headers)
+        else:
+            response = requests.put(url, json=body)
+
         data = response.json()
         was_updated = data['success']
-
         if not was_updated:
             print(f'\nPACKAGE NOT UPDATED IN PIPEDRIVE: {data}')
             return False
@@ -612,14 +693,32 @@ def create_pipedrive_deal(package_plan):
         if not package_plan.customer.pipedrive_id:
             return False
 
-        # Create the deal in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals?api_token={pipedrive_key}'
-        pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
+        # Update Packeag in Pipedrive
+        # If the owner of the package is a staff member, use the API key
+        # Otherwise, use the OAuth token
+        headers = None
+        if package_plan.owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals?api_token={pipedrive_key}'
+            pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
+        else:
+            pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals'
+            pipedrive_domain = package_plan.owner.piprdrive_api_url
+            tokens = get_pipedrive_oauth_tokens(package_plan.owner.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            
+        # Set the stripe url
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/subscriptions/{package_plan.stripe_subscription_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/subscriptions/{package_plan.stripe_subscription_id}'
+            
+        # Make the request
         body = {
             'title': package_plan.name,
             'person_id': package_plan.customer.pipedrive_id,
@@ -627,14 +726,17 @@ def create_pipedrive_deal(package_plan):
             # "49051a6391f07f3175cb0984b6c3a849429d0555": package_plan.billing_cycle,
             pipedrive_deal_stripe_url_key: stripe_url
         }
-        response = requests.post(url, json=body)
+        if headers:
+            response = requests.post(url, json=body, headers=headers)
+        else:
+            response = requests.post(url, json=body)
+            
+        # Check the response data and update the packages pipedrive id
         data = response.json()
+        
         deal_created = data['success']
-
         if not deal_created:
             print(f'\nDEAL NOT CREATED IN PIPEDRIVE: {data}')
-
-        # Check the response data and update the packages pipedrive id
         if not deal_created:
             return False
 
@@ -651,26 +753,36 @@ def create_pipedrive_deal(package_plan):
 """ UPDATE DEAL IN PIPEDRIVE """
 def update_pipedrive_deal(package_plan):
     try:
-        # print('\n\n $*$* UPDATING PIPEDRIVE DEAL *$*$ \n\n')
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-        # print('got the env vars')
         # Get the pipedrive customer id
         pipedrive_customer_id = package_plan.customer.pipedrive_id
-        print(f'got the pipedrive customer id: {pipedrive_customer_id}')
         # Then update the deal
         if pipedrive_customer_id:
-            print('Getting the pipedrive customer id')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}?api_token={pipedrive_key}'
+            # Update Packeag in Pipedrive
+            # If the owner of the package is a staff member, use the API key
+            # Otherwise, use the OAuth token
+            headers = None
+            if package_plan.owner.is_staff:
+                pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+                pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+                url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}?api_token={pipedrive_key}'
+                pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
+            else:
+                pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
+                url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}'
+                pipedrive_domain = package_plan.owner.piprdrive_api_url
+                tokens = get_pipedrive_oauth_tokens(package_plan.owner.pk)
+                headers = {
+                    'Authorization': f'Bearer {tokens["access_token"]}',
+                }
 
-            pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
+            # Set up the stripe url
             environment = os.environ.get('DJANGO_ENV')
             if environment == 'production':
                 stripe_url = f'https://dashboard.stripe.com/subscriptions/{package_plan.stripe_subscription_id}'
             else:
                 stripe_url = f'https://dashboard.stripe.com/test/subscriptions/{package_plan.stripe_subscription_id}'
-            print(f'got the stripe url: {stripe_url}')
+
+            # Make the request
             body = {
                 'title': package_plan.name,
                 'person_id': package_plan.customer.pipedrive_id,
@@ -678,22 +790,14 @@ def update_pipedrive_deal(package_plan):
                 # "49051a6391f07f3175cb0984b6c3a849429d0555": package_plan.billing_cycle,
                 pipedrive_deal_stripe_url_key: stripe_url
             }
-            response = requests.put(url, json=body)
+            if headers:
+                response = requests.put(url, json=body, headers=headers)
+            else:
+                response = requests.put(url, json=body)
+
+            # Check the response data
             data = response.json()
-            print(f'got the response: {data}')
             deal_updated = data['success']
-
-            # # Get custom deal fields
-            # url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields/?api_token={pipedrive_key}'
-            # response = requests.get(url)
-            # deal_fields = response.json()['data']
-            # # print(deal_fields)
-
-            # print('MAKING REQUEST....')
-            # url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields/49051a6391f07f3175cb0984b6c3a849429d0555?api_token={pipedrive_key}'
-            # response = requests.put(url, data={"value": "test"})
-            # print(response.json())
-
             if not deal_updated:
                 print(f'\nDEAL NOT UPDATED IN PIPEDRIVE: {data}')
                 return False

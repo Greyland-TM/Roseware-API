@@ -201,7 +201,7 @@ def delete_service_package_sync(pipedrive_id, stripe_id, should_sync_pipedrive, 
 # TODO - Create a new package for a customer.
 # Accepts a dictionary of customer selected options.
 # Returns a ServicePackage object or False.
-def create_service_packages(customer, package_details, should_sync_pipedrive, should_sync_stripe):
+def create_service_packages(customer, package_details, should_sync_pipedrive, should_sync_stripe, owner):
     try:
         # Get the package template
         print(package_details)
@@ -210,6 +210,7 @@ def create_service_packages(customer, package_details, should_sync_pipedrive, sh
             related_app = package["related_app"].lower()
             type = package["type"].lower()
             package_template, _ = ServicePackageTemplate.objects.get_or_create(
+                owner=owner,
                 related_app=related_app,
                 type=type,
                 defaults={

@@ -53,8 +53,20 @@ class ProductCreateWebhook(APIView):
             if existing_package_template:
                 existing_package_template.save(should_sync_pipedrive=False, should_sync_stripe=False)
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
+            
+            # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
+            # The reason for this is so that later we can check if the customer is owned by the rep or the customer, and make the correct api requests.
+            # If an employee is the owner then api keys will be used, if it is a customer then oauth will be used.
+            customer_pk = request.GET.get('pk')
+            if customer_pk is not None:
+                customer = Customer.objects.get(pk=customer_pk)
+                owner = customer.user
+            else:
+                employee = Employee.objects.all().first()
+                owner = employee.user
 
             new_package_template = ServicePackageTemplate(
+                owner=owner,
                 name=product_name,
                 description=product_description,
                 related_app=related_app,
@@ -168,7 +180,7 @@ class CustomerCreateWebhook(APIView):
         print('*** Stripe CustomerCreateWebhook ***')
         # Simetimes the webhooks come in too fast,
         # so we need to wait a second to make sure the OnGoingSync object is created
-        print(f'IN THE CUSTOMER CREATE WEBHOOK - {request.data}')
+        # print(f'IN THE CUSTOMER CREATE WEBHOOK - {request.data}')
         time.sleep(1)
 
         # Check if we should stop processing stripe webhooks
@@ -216,12 +228,23 @@ class CustomerCreateWebhook(APIView):
         except Exception as e:
             print(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
+        
+        # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
+        # The reason for this is so that later we can check if the customer is owned by the rep or the customer, and make the correct api requests.
+        # If an employee is the owner then api keys will be used, if it is a customer then oauth will be used.
+        customer_pk = request.GET.get('pk')
+        if customer_pk is not None:
+            customer = Customer.objects.get(pk=customer_pk)
+            owner = customer.user
+        else:
+            owner = rep.user
 
         # Create the customer
         customer = Customer(
             user=user,
             phone=phone,
             rep=rep,
+            owner=owner,
             stripe_customer_id=customer_id,
             last_synced_from='stripe',
             original_sync_from='stripe',
@@ -238,7 +261,7 @@ class CustomerSyncWebhook(APIView):
     # authentication_classes = [WebhookAuthentication]
 
     def post(self, request, format=None):
-        print('*** CustomerSyncWebhook ***')
+        # print('*** CustomerSyncWebhook ***')
         print(request.data)
 
         # Check if we should stop processing stripe webhooks
@@ -368,7 +391,8 @@ class SubscriptionCreateWebhook(APIView):
             return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
         package_plan = {
-            'billing_cycle': subscription['plan']['interval'],
+            # 'billing_cycle': subscription['plan']['interval'],
+            'type': 'subscription',
             'status': subscription['status'],
             'description': "New Customer Package Plan",
             'stripe_subscription_id': subscription_id,
@@ -396,9 +420,15 @@ class SubscriptionCreateWebhook(APIView):
                 'requires_onboarding': requires_onboarding
             }
             package_plan['packages'].append(package)
+            
+            customer_pk = request.GET.get('pk', None)
+            if customer_pk:
+                owner = customer.user
+            else:
+                owner = customer.rep.user
 
             # Create the service packages
-            create_service_packages(customer, package_plan, True, False)
+            create_service_packages(customer, package_plan, True, False, owner=owner)
 
         return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 

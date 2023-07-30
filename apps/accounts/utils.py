@@ -77,7 +77,7 @@ def create_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
         })
 
     if should_sync_stripe:
-        print('Creating customer to stripe... (Check celery terminal)')
+        print('Creating customer in stripe... (Check celery terminal)')
         sync_stripe.apply(kwargs={
             'pk': customer.pk,
             'action': 'create',
@@ -96,19 +96,19 @@ def update_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
     update_or_create_ongoing_sync('customer', 'update', should_sync_stripe, should_sync_pipedrive, sync_platform)
     # Update the customer
     if should_sync_pipedrive:
-        print('Updating customer to pipedrive... (Check celery terminal)')
+        print('Updating customer in pipedrive... (Check celery terminal)')
         sync_pipedrive.delay(customer.pk, 'update', "customer")
 
     if should_sync_stripe:
-        print('Updating customer to stripe... (Check celery terminal)')
+        print('Updating customer in stripe... (Check celery terminal)')
         sync_stripe.delay(customer.pk, 'update', "customer")
 
 def delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive):
     # Delete the customer
     if should_sync_pipedrive:
-        print('Deleting customer to pipedrive... (Check celery terminal)')
+        print('Deleting customer in pipedrive... (Check celery terminal)')
         sync_pipedrive.delay(pipedrive_id, 'delete', "customer")
 
     if should_sync_stripe:
-        print('Deleting customer to stripe... (Check celery terminal)')
+        print('Deleting customer in stripe... (Check celery terminal)')
         sync_stripe.delay(stripe_id, 'delete', "customer")

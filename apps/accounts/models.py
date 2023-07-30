@@ -23,6 +23,7 @@ class Customer(models.Model):
     # Fields
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     rep = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="customer_owner", null=True, blank=True)
     first_name = CharField(default="", max_length=100, null=False, blank=False)
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
@@ -37,6 +38,10 @@ class Customer(models.Model):
     stripe_customer_id = CharField(default="", max_length=100, null=True, blank=True)
     original_sync_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     last_synced_from = CharField(max_length=100, null=True, blank=True, default="roseware")
+    has_synced_pipedrive = models.BooleanField(default=False)
+    has_synced_stripe = models.BooleanField(default=False)
+    
+    # Pipedrive api key / oauth token. Depends on the user making the request. Employee's should use the api keys.
     PIPEDRIVE_PERSON_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
     PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
     PIPEDRIVE_DEAL_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
@@ -46,7 +51,6 @@ class Customer(models.Model):
     PIPEDRIVE_DEAL_PROCESSING_FIELD = CharField(max_length=100, null=True, blank=True, default="")
     PIPEDRIVE_DEAL_INVOICE_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
     PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
-    
 
     def save(self, should_sync_stripe=True, should_sync_pipedrive=True, *args, **kwargs):
         from .utils import create_customer_sync, update_customer_sync

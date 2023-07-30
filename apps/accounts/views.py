@@ -88,10 +88,21 @@ class CreateCustomerAPIView(APIView):
 
             # Get the represantative to set as the default rep for the customer
             representative = Employee.objects.all().first()
+            
+            # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
+            # The reason for this is so that later we can check if the customer is owned by the rep or the customer, and make the correct api requests.
+            # If an employee is the owner then api keys will be used, if it is a customer then oauth will be used.
+            customer_pk = request.GET.get('pk')
+            if customer_pk is not None:
+                customer = Customer.objects.get(pk=customer_pk)
+                owner = customer.user
+            else:
+                owner = representative.user
 
             # Create the customer
             customer = Customer(
                 user=user,
+                owner=owner,
                 rep=representative,
                 phone=request.data["phone"],
             )

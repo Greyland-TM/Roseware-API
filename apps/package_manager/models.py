@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import (BooleanField, CharField, DateTimeField,
                               DecimalField, IntegerField)
-
+from django.contrib.auth.models import User
 from apps.accounts.models import Customer
 
 # Create your models here.
@@ -22,6 +22,7 @@ class ServicePackageTemplate(models.Model):
     # )
     ACTION_CHOICES = (("create", "Create"),)
 
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="package_template_owner", null=True, blank=True)
     related_app = CharField(max_length=100, default="integrations")
     description = CharField(max_length=100, default="", null=True, blank=True)
     name = CharField(max_length=100, default="")
@@ -64,6 +65,7 @@ class ServicePackageTemplate(models.Model):
         delete_package_template_sync(stripe_id, pipedrive_id, should_sync_pipedrive, should_sync_stripe)
 
 class PackagePlan(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="package_plan_owner", null=True, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     name = CharField(max_length=100, default="")
     status = CharField(max_length=100)
