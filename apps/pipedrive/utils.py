@@ -1,9 +1,12 @@
+import base64
 import json
 import os
+
 import boto3
 import requests
-import base64
+
 from apps.accounts.models import Customer
+
 
 def set_pipedrive_keys(customer_pk, access_token, refresh_token):
     # Create a Secrets Manager client
@@ -91,11 +94,13 @@ def create_pipedrive_stripe_url_fields(customer_pk):
         headers = {
             'Authorization': f'Bearer {access_token}',
         }
+        print('Checking headers: ', pipedrive_domain, headers)
 
         try:
             # Add stripe_url field to dealFields
             url = f'{pipedrive_domain}/v1/dealFields'
             response = requests.post(url, data, headers=headers)
+            print('Checking Response: ', response.json())
             deal_key = response.json()['data']['key']
 
             # Add stripe_url field to personFields
@@ -108,12 +113,14 @@ def create_pipedrive_stripe_url_fields(customer_pk):
             response = requests.post(url, data=data, headers=headers)
             product_key = response.json()['data']['key']
         except Exception as error:
-            new_tokens = refresh_pipedrive_tokens(customer_pk, refresh_token)
-            if new_tokens:
-                create_pipedrive_stripe_url_fields(customer_pk)
-                return True
-            else:
-                return False
+            print('Error creating custom fields: ', error)
+            return False
+            # new_tokens = refresh_pipedrive_tokens(customer_pk, refresh_token)
+            # if new_tokens:
+            #     create_pipedrive_stripe_url_fields(customer_pk)
+            #     return True
+            # else:
+            #     return False
 
         # Print the keys
         customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY = person_key
@@ -433,8 +440,10 @@ def update_pipedrive_customer(customer):
             'phone': f'{customer.phone}',
             pipedrive_person_stripe_url_key: stripe_url,
         }
+        
         response = requests.put(url, json=body)
         data = response.json()
+        
         was_updated = data['success']
 
         if not was_updated:
@@ -651,17 +660,13 @@ def create_pipedrive_deal(package_plan):
 """ UPDATE DEAL IN PIPEDRIVE """
 def update_pipedrive_deal(package_plan):
     try:
-        # print('\n\n $*$* UPDATING PIPEDRIVE DEAL *$*$ \n\n')
         # Get the environment variables
         pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
         pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-        # print('got the env vars')
         # Get the pipedrive customer id
         pipedrive_customer_id = package_plan.customer.pipedrive_id
-        print(f'got the pipedrive customer id: {pipedrive_customer_id}')
         # Then update the deal
         if pipedrive_customer_id:
-            print('Getting the pipedrive customer id')
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}?api_token={pipedrive_key}'
 
             pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
@@ -670,7 +675,7 @@ def update_pipedrive_deal(package_plan):
                 stripe_url = f'https://dashboard.stripe.com/subscriptions/{package_plan.stripe_subscription_id}'
             else:
                 stripe_url = f'https://dashboard.stripe.com/test/subscriptions/{package_plan.stripe_subscription_id}'
-            print(f'got the stripe url: {stripe_url}')
+
             body = {
                 'title': package_plan.name,
                 'person_id': package_plan.customer.pipedrive_id,
@@ -680,19 +685,7 @@ def update_pipedrive_deal(package_plan):
             }
             response = requests.put(url, json=body)
             data = response.json()
-            print(f'got the response: {data}')
             deal_updated = data['success']
-
-            # # Get custom deal fields
-            # url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields/?api_token={pipedrive_key}'
-            # response = requests.get(url)
-            # deal_fields = response.json()['data']
-            # # print(deal_fields)
-
-            # print('MAKING REQUEST....')
-            # url = f'https://{pipedrive_domain}.pipedrive.com/v1/dealFields/49051a6391f07f3175cb0984b6c3a849429d0555?api_token={pipedrive_key}'
-            # response = requests.put(url, data={"value": "test"})
-            # print(response.json())
 
             if not deal_updated:
                 print(f'\nDEAL NOT UPDATED IN PIPEDRIVE: {data}')
