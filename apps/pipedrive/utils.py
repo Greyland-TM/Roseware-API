@@ -247,7 +247,7 @@ def create_pipedrive_webhooks(access_token=None, customer=None):
         http_auth_pass = os.environ.get('HTTP_AUTH_PASSWORD')
         current_webhooks = None
 
-        print("Getting current webhooks...")
+        print("Setting up webhooks...")
         if not access_token:
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
             current_webhooks_request = requests.get(url)
