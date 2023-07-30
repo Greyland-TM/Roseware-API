@@ -4,7 +4,6 @@ import os
 
 import boto3
 import requests
-
 from apps.accounts.models import Customer
 
 
@@ -560,8 +559,8 @@ def create_pipedrive_package_template(package):
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
         else:
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}'
             pipedrive_domain = package.owner.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/products?api_token={pipedrive_key}'
             tokens = get_pipedrive_oauth_tokens(package.owner.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -619,8 +618,8 @@ def update_pipedrive_package_template(package_template):
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
         else:
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{package_template.pipedrive_id}'
             pipedrive_domain = package_template.owner.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/products/{package_template.pipedrive_id}'
             tokens = get_pipedrive_oauth_tokens(package_template.owner.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -704,8 +703,8 @@ def create_pipedrive_deal(package_plan):
             pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
         else:
             pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals'
             pipedrive_domain = package_plan.owner.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/deals'
             tokens = get_pipedrive_oauth_tokens(package_plan.owner.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -768,8 +767,8 @@ def update_pipedrive_deal(package_plan):
                 pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
             else:
                 pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
-                url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}'
                 pipedrive_domain = package_plan.owner.piprdrive_api_url
+                url = f'{pipedrive_domain}/v1/deals/{package_plan.pipedrive_id}'
                 tokens = get_pipedrive_oauth_tokens(package_plan.owner.pk)
                 headers = {
                     'Authorization': f'Bearer {tokens["access_token"]}',

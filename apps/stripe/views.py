@@ -261,9 +261,8 @@ class CustomerSyncWebhook(APIView):
     # authentication_classes = [WebhookAuthentication]
 
     def post(self, request, format=None):
-        # print('*** CustomerSyncWebhook ***')
-        print(request.data)
-
+        print('*** CustomerSyncWebhook ***')
+        
         # Check if we should stop processing stripe webhooks
         stop_stripe_webhooks = Toggles.objects.filter(name='Toggles').first()
         if stop_stripe_webhooks.stop_stripe_webhooks:
@@ -278,9 +277,7 @@ class CustomerSyncWebhook(APIView):
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
         # get the customer stripe id from the webhook
-        print('Getting the suctomers stripe id...')
         customer_stripe_data = request.data['data']['object']
-        print('customer_stripe_data: ', customer_stripe_data)
         customer_id = customer_stripe_data['id']
         stripe_phone = customer_stripe_data.get('phone', '')
         name_split = customer_stripe_data.get('name', '').split(' ')
@@ -322,7 +319,6 @@ class CustomerDeleteWebhook(APIView):
 
     def post(self, request, format=None):
         print('*** CustomerDeleteWebhook ***')
-        # print(request.data)
 
         # Check if we should stop processing stripe webhooks
         stop_stripe_webhooks = Toggles.objects.filter(name='Toggles').first()
