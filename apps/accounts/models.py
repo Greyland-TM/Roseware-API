@@ -37,6 +37,10 @@ class Customer(models.Model):
     stripe_customer_id = CharField(default="", max_length=100, null=True, blank=True)
     original_sync_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     last_synced_from = CharField(max_length=100, null=True, blank=True, default="roseware")
+    has_synced_pipedrive = models.BooleanField(default=False)
+    has_synced_stripe = models.BooleanField(default=False)
+    
+    # Pipedrive api key / oauth token. Depends on the user making the request. Employee's should use the api keys.
     PIPEDRIVE_PERSON_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
     PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
     PIPEDRIVE_DEAL_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
