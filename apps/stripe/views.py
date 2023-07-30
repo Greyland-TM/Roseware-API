@@ -168,7 +168,7 @@ class CustomerCreateWebhook(APIView):
         print('*** Stripe CustomerCreateWebhook ***')
         # Simetimes the webhooks come in too fast,
         # so we need to wait a second to make sure the OnGoingSync object is created
-        print(f'IN THE CUSTOMER CREATE WEBHOOK - {request.data}')
+        # print(f'IN THE CUSTOMER CREATE WEBHOOK - {request.data}')
         time.sleep(1)
 
         # Check if we should stop processing stripe webhooks
@@ -238,7 +238,7 @@ class CustomerSyncWebhook(APIView):
     # authentication_classes = [WebhookAuthentication]
 
     def post(self, request, format=None):
-        print('*** CustomerSyncWebhook ***')
+        # print('*** CustomerSyncWebhook ***')
         print(request.data)
 
         # Check if we should stop processing stripe webhooks
