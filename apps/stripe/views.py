@@ -111,7 +111,6 @@ class ProductSyncWebhook(APIView):
 
         # Chaeck if the price has changed
         if product:
-
             stripe.api_key = os.environ.get('STRIPE_PRIVATE')
             price_id = request.data['data']['object']['default_price']
 
