@@ -100,7 +100,6 @@ def update_stripe_product(product):
             name=product.name,
             description=product.description,
         )
-        print('check #5')
         return True
     except Exception as error:
         print(f"\nError 2: {error}")

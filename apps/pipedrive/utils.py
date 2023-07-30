@@ -4,9 +4,7 @@ import os
 
 import boto3
 import requests
-
 from apps.accounts.models import Customer
-
 
 def get_pipedrive_oauth_tokens(customer_pk):
     # Initialize the AWS Secrets Manager client
@@ -249,7 +247,7 @@ def create_pipedrive_webhooks(access_token=None, customer=None):
         http_auth_pass = os.environ.get('HTTP_AUTH_PASSWORD')
         current_webhooks = None
 
-        print("Getting current webhooks...")
+        print("Setting up webhooks...")
         if not access_token:
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/webhooks?api_token={pipedrive_key}'
             current_webhooks_request = requests.get(url)
@@ -385,19 +383,15 @@ def create_pipedrive_customer(customer):
         # If the owner of the customer is a staff member, use the API key
         # Otherwise, use the OAuth token
         headers = None
-        print('\n\n!! HERE !!\n** Creating nerw customer... ')
-        print(customer.owner)
         if customer.owner.is_staff:
-            print('chouls see this')
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons?api_token={pipedrive_key}'
             pipedrive_person_stripe_url_key = os.environ.get('PIPEDRIVE_PERSON_STRIPE_URL_KEY')
         else:
-            print('chouls should not see this')
             pipedrive_person_stripe_url_key = customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY
-            url = f'{pipedrive_domain}/v1/persons'
             pipedrive_domain = customer.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/persons'
             tokens = get_pipedrive_oauth_tokens(customer.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -417,8 +411,7 @@ def create_pipedrive_customer(customer):
             'phone': f'{customer.phone}',
             pipedrive_person_stripe_url_key: stripe_url,
         }
-        print('body: ', body)
-        print('url: ', url)
+        
         if headers:
             response = requests.post(url, json=body, headers=headers)
         else:
@@ -426,8 +419,6 @@ def create_pipedrive_customer(customer):
 
         # Check the response data and update the customers pipedrive id
         data = response.json()
-        print('checking data: ', data)
-        # print(f'** PIPEDRIVE RESPONSE: {data} **\n\n')
         customer_created = data['success']
 
         if not customer_created:
@@ -461,15 +452,15 @@ def update_pipedrive_customer(customer):
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
             }
-        
+
         # Create the url that will be used to link the customer to Stripe
         environment = os.environ.get('DJANGO_ENV')
         if environment == 'production':
             stripe_url = f'https://dashboard.stripe.com/customers/{customer.stripe_customer_id}'
         else:
             stripe_url = f'https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}'
-          
-        
+
+
         # Make the request to create the customer in Pipedrive
         body = {
             'name': f'{customer.first_name} {customer.last_name}',
@@ -494,15 +485,26 @@ def update_pipedrive_customer(customer):
         return False
 
 """ DELETE CUSTOMER IN PIPEDRIVE """
-def delete_pipedrive_customer(pipedrive_id):
+def delete_pipedrive_customer(pipedrive_id, owner):
+    from apps.accounts.models import Customer
+    
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
-        # Create the customer in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{pipedrive_id}?api_token={pipedrive_key}'
-        response = requests.delete(url)
+        # Delete the pipedrive product from a pipedrve deal
+        if owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{pipedrive_id}?api_token={pipedrive_key}'
+            response = requests.delete(url)
+        else:
+            pipedrive_domain = owner.piprdrive_api_url
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{pipedrive_id}'
+            customer = Customer.objects.get(user=owner)
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            response = requests.delete(url, headers=headers)
+        
         data = response.json()
         was_deleted = data['success']
 
@@ -517,25 +519,37 @@ def delete_pipedrive_customer(pipedrive_id):
 
 """ CREATE LEAD IN PIPEDRIVE """""
 def create_pipedrive_lead(customer):
+    from apps.accounts.models import Customer
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
-        # Get the pipedrive customer id
-        pipedrive_customer_id = customer.pipedrive_id
-
         # Then create the lead in Pipedrive
+        pipedrive_customer_id = customer.pipedrive_id
         if pipedrive_customer_id:
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/leads?api_token={pipedrive_key}'
-            body = {
-                'title': f'{customer.first_name} {customer.last_name} lead',
-                'person_id': int(pipedrive_customer_id),
-            }
-            response = requests.post(url, json=body)
+            if customer.owner.is_staff:
+                pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+                pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+                url = f'https://{pipedrive_domain}.pipedrive.com/v1/leads?api_token={pipedrive_key}'
+                body = {
+                    'title': f'{customer.first_name} {customer.last_name} lead',
+                    'person_id': int(pipedrive_customer_id),
+                }
+                response = requests.post(url, json=body)
+                
+            else:
+                pipedrive_domain = Customer.objects.get(user=customer.owner).pipedrive_api_url
+                url = f'{pipedrive_domain}/v1/leads'
+                body = {
+                    'title': f'{customer.first_name} {customer.last_name} lead',
+                    'person_id': int(pipedrive_customer_id),
+                }
+                lead_created = data['success']
+                tokens = get_pipedrive_oauth_tokens(customer.owner.pk)
+                headers = {
+                    'Authorization': f'Bearer {tokens["access_token"]}',
+                }
+                response = requests.post(url, json=body, headers=headers)
+
             data = response.json()
             lead_created = data['success']
-
             if not lead_created:
                 print(f'\nLEAD NOT CREATED IN PIPEDRIVE: {data}')
                 return False
@@ -556,12 +570,12 @@ def create_pipedrive_package_template(package):
         if package.owner.is_staff:
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}?api_token={pipedrive_key}'
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}'
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
         else:
-            pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products?api_token={pipedrive_key}'
+            pipedrive_product_stripe_url_key = package.owner('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
             pipedrive_domain = package.owner.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/products'
             tokens = get_pipedrive_oauth_tokens(package.owner.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -619,8 +633,8 @@ def update_pipedrive_package_template(package_template):
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
         else:
             pipedrive_product_stripe_url_key = os.environ.get('PIPEDRIVE_PRODUCT_STRIPE_URL_KEY')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{package_template.pipedrive_id}'
             pipedrive_domain = package_template.owner.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/products/{package_template.pipedrive_id}'
             tokens = get_pipedrive_oauth_tokens(package_template.owner.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -661,15 +675,25 @@ def update_pipedrive_package_template(package_template):
         return False
 
 """ DELETE PACKAGE IN PIPEDRIVE """
-def delete_pipedrive_package_template(pipedrive_id):
+def delete_pipedrive_package_template(pipedrive_id, owner):
+    
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
-        # Create the customer in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{pipedrive_id}?api_token={pipedrive_key}'
-        response = requests.delete(url)
+        # Delete the customer in Pipedrive
+        if owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{pipedrive_id}?api_token={pipedrive_key}'
+            response = requests.delete(url)
+        else:
+            pipedrive_domain = owner.piprdrive_api_url
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{pipedrive_id}'
+            customer = Customer.objects.get(user=owner)
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            response = requests.delete(url, headers=headers)
+        
         data = response.json()
         was_deleted = data['success']
 
@@ -704,8 +728,8 @@ def create_pipedrive_deal(package_plan):
             pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
         else:
             pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
-            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals'
             pipedrive_domain = package_plan.owner.piprdrive_api_url
+            url = f'{pipedrive_domain}/v1/deals'
             tokens = get_pipedrive_oauth_tokens(package_plan.owner.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -768,8 +792,8 @@ def update_pipedrive_deal(package_plan):
                 pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
             else:
                 pipedrive_deal_stripe_url_key = os.environ.get('PIPEDRIVE_DEAL_STRIPE_URL_KEY')
-                url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}'
                 pipedrive_domain = package_plan.owner.piprdrive_api_url
+                url = f'{pipedrive_domain}/v1/deals/{package_plan.pipedrive_id}'
                 tokens = get_pipedrive_oauth_tokens(package_plan.owner.pk)
                 headers = {
                     'Authorization': f'Bearer {tokens["access_token"]}',
@@ -810,15 +834,24 @@ def update_pipedrive_deal(package_plan):
         return False
 
 """ DELETE DEAL IN PIPEDRIVE """
-def delete_pipedrive_deal(deal_id):
+def delete_pipedrive_deal(deal_id, owner):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
         # Delete the deal in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{deal_id}?api_token={pipedrive_key}'
-        response = requests.delete(url)
+        if owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{deal_id}?api_token={pipedrive_key}'
+            response = requests.delete(url)
+        else:
+            pipedrive_domain = owner.piprdrive_api_url
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{deal_id}'
+            customer = Customer.objects.get(user=owner)
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            response = requests.delete(url, headers=headers)
+
         data = response.json()
         was_deleted = data['success']
 
@@ -835,18 +868,28 @@ def delete_pipedrive_deal(deal_id):
 def create_pipedrive_service_package(service_package):
 
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
-        # Create the product in Pipedrive
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{service_package.package_plan.pipedrive_id}/products?api_token={pipedrive_key}'
-        body = {
-            'product_id': int(service_package.package_template.pipedrive_id),
-            'item_price': float(service_package.cost),
-            'quantity': int(service_package.quantity),
-        }
-        response = requests.post(url, json=body)
+        # Delete the pipedrive product from a pipedrve deal
+        if service_package.package_plan.owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{service_package.package_plan.pipedrive_id}/products?api_token={pipedrive_key}'
+            body = {
+                'product_id': int(service_package.package_template.pipedrive_id),
+                'item_price': float(service_package.cost),
+                'quantity': int(service_package.quantity),
+            }
+            response = requests.post(url, json=body)
+        else:
+            pipedrive_domain = service_package.package_plan.owner.piprdrive_api_url
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1'
+            f'/deals/{service_package.package_plan.pipedrive_id}0{service_package.pipedrive_product_attachment_id}'
+            customer = Customer.objects.get(user=service_package.package_plan.owner)
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            response = requests.delete(url, json=body, headers=headers)
+        
         data = response.json()
         deal_created = data['success']
 
@@ -866,20 +909,37 @@ def create_pipedrive_service_package(service_package):
 """ UPDATE PRODUCT IN PIPEDRIVE DEAL """
 def update_pipedrive_service_package(service_package):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
         # Add a product to a pipedrive deal
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1'
-        f'/deals/{service_package.package_plan.pipedrive_id}'
-        f'/products/{service_package.pipedrive_product_attachment_id}?api_token={pipedrive_key}'
-        body = {
-            'product_id': int(service_package.package_template.pipedrive_id),
-            'item_price': float(service_package.cost),
-            'quantity': int(service_package.quantity),
-        }
-        response = requests.put(url, json=body)
+        if service_package.package_plan.owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1'
+            f'/deals/{service_package.package_plan.pipedrive_id}'
+            f'/products/{service_package.pipedrive_product_attachment_id}?api_token={pipedrive_key}'
+            body = {
+                'product_id': int(service_package.package_template.pipedrive_id),
+                'item_price': float(service_package.cost),
+                'quantity': int(service_package.quantity),
+            }
+            response = requests.put(url, json=body)
+        else:
+            pipedrive_domain = service_package.package_plan.owner.pipedrive_api_url
+            url = f'{pipedrive_domain}/v1'
+            f'/deals/{service_package.package_plan.pipedrive_id}'
+            f'/products/{service_package.pipedrive_product_attachment_id}'
+            body = {
+                'product_id': int(service_package.package_template.pipedrive_id),
+                'item_price': float(service_package.cost),
+                'quantity': int(service_package.quantity),
+            }
+            response = requests.put(url, json=body)
+            customer = Customer.objects.get(user=service_package.package_plan.owner)
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            response = requests.delete(url, json=body, headers=headers)
+
         data = response.json()
         deal_updated = data['success']
 
@@ -893,18 +953,27 @@ def update_pipedrive_service_package(service_package):
         return False
 
 """ DELETE PRODUCT IN PIPEDRIVE DEAL """""
-def delete_pipedrive_service_package(service_package):
+def delete_pipedrive_service_package(service_package, owner):
     try:
-        # Get the environment variables
-        pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
-        pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
-
-        # Add a product to a pipedrive deal
-        url = f'https://{pipedrive_domain}.pipedrive.com/v1'
-        f'/deals/{service_package.package_plan.pipedrive_id}0{service_package.pipedrive_product_attachment_id}'
-        f'?api_token={pipedrive_key}'
-
-        response = requests.delete(url)
+        # Delete the pipedrive product from a pipedrve deal
+        if owner.is_staff:
+            pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
+            pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1'
+            f'/deals/{service_package.package_plan.pipedrive_id}0{service_package.pipedrive_product_attachment_id}'
+            f'?api_token={pipedrive_key}'
+            response = requests.delete(url)
+        else:
+            pipedrive_domain = service_package.package_plan.owner.piprdrive_api_url
+            url = f'https://{pipedrive_domain}.pipedrive.com/v1'
+            f'/deals/{service_package.package_plan.pipedrive_id}0{service_package.pipedrive_product_attachment_id}'
+            customer = Customer.objects.get(user=service_package.package_plan.owner)
+            tokens = get_pipedrive_oauth_tokens(customer.pk)
+            headers = {
+                'Authorization': f'Bearer {tokens["access_token"]}',
+            }
+            response = requests.delete(url, headers=headers)
+        
         data = response.json()
         deal_deleted = data['success']
 
