@@ -64,7 +64,6 @@ class PipedriveOauth(APIView):
             }
             response = requests.post(url, data=payload)
             data = response.json()
-            print(f'Pipedrive Oauth response: {data}')
 
             # Check if the response was successful and set the access and refresh tokens
             if 'success' in data and not data['success']:
@@ -361,7 +360,7 @@ class CustomerCreateWebhook(APIView):
             phone = data['current']['phone'][0]['value'] if data['current']['phone'] else None
             password = "markittemppass2023"  # TODO - Set a default password or generate a random one
 
-            #  Create user object using the serializer
+            # Create user object using the serializer
             try:
                 serializer_data = {"first_name": first_name, "last_name": last_name, "username": email, "email": email, "password": password}
                 serializer = RegisterSerializer(data=serializer_data)
