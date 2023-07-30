@@ -158,7 +158,7 @@ class PackageCreateWebhook(APIView):
             type = type_split[1]
             related_app = type_split[0]
             description = request_data['description']
-            unit = request_data['unit']
+            unit = request_data['prices'][0]['price']
 
             # Check if the webhook is being sent as a result of a sync
             ongoing_sync = OngoingSync.objects.filter(type='package_template', action='create').first()
