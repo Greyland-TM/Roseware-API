@@ -15,6 +15,7 @@ from knox.auth import TokenAuthentication
 from apps.accounts.custom_auth import WebhookAuthentication
 from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.accounts.serializers import RegisterSerializer
+from apps.accounts.serializers import CustomerSerializer
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
 from apps.stripe.models import StripeSubscription
@@ -82,6 +83,7 @@ class PipedriveOauth(APIView):
             pipedrive_user_id = response.json()['data']['id']
             customer.pipedrive_user_id = pipedrive_user_id
             customer.piprdrive_api_url = piprdrive_api_url
+            customer.has_synced_pipedrive = True
             customer.save()
 
             # Get or create The Package Plan
@@ -119,7 +121,7 @@ class PipedriveOauth(APIView):
             create_pipedrive_type_fields(customer.pk)
             create_pipedrive_stripe_url_fields(customer.pk)
 
-            return Response({"ok": True, "message": "Access token stored successfully."}, status=status.HTTP_200_OK)
+            return Response({"ok": True, "message": "Access token stored successfully.", "customer_data": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
         except Exception as e:
             print(f'Error getting Oauth tokens from Pipedrive: {e}')
             return Response({"ok": False, "message": "Error getting access token."}, status=status.HTTP_400_BAD_REQUEST)
