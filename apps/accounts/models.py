@@ -107,28 +107,18 @@ class OngoingSync(models.Model):
     has_recieved_pipedrive_webhook = models.BooleanField(default=False)
     stop_stripe_webhook = models.BooleanField(default=False)
     has_recieved_stripe_webhook = models.BooleanField(default=False)
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def save(self, *args, **kwargs):
-        # print(
-        #     f"* Saving OngoingSync object,"
-        #     f" stop_pipedrive_webhook: {self.stop_pipedrive_webhook},"
-        #     f" has_recieved_stripe_webhook: {self.has_recieved_stripe_webhook}\n"
-        # )
 
         is_new = self._state.adding
         if is_new:
-            # print(
-            #     f"* Created OngoingSync object, "
-            #     f" stop_pipedrive_webhook: {self.stop_pipedrive_webhook}, "
-            #     f"has_recieved_stripe_webhook{self.has_recieved_stripe_webhook}\n"
-            # )
             self.has_recieved_pipedrive_webhook = self.stop_pipedrive_webhook
             self.has_recieved_stripe_webhook = self.stop_stripe_webhook
         super(OngoingSync, self).save(*args, **kwargs)
 
         # If both webhooks have been received, delete the object and return True
         if self.has_recieved_pipedrive_webhook and self.has_recieved_stripe_webhook:
-            # print("* Deleted OngoingSync object \n")
             self.delete()
             return True
 

@@ -18,7 +18,7 @@ from .utils import (create_pipedrive_customer, create_pipedrive_deal,
 logger = make_logger()
 
 @app.task(default_retry_delay=10, max_retries=3)
-def sync_pipedrive(pk, action, type):
+def sync_pipedrive(pk, action, type, owner=None):
     # Get customer details
 
     try:
@@ -42,7 +42,7 @@ def sync_pipedrive(pk, action, type):
 
             # *** Delete Existing Pipedrive Contact ***
             elif action == 'delete':
-                was_deleted = delete_pipedrive_customer(pk)  # On delete, the pk is actually the pipedrive_id
+                was_deleted = delete_pipedrive_customer(pk, owner)  # On delete, the pk is actually the pipedrive_id
                 if not was_deleted:
                     logger.error('*** Failed to delete customer in Pipedrive ***')
                 return False
@@ -67,7 +67,7 @@ def sync_pipedrive(pk, action, type):
 
             # *** Delete Existing Pipedrive Package_template ***
             elif action == 'delete':
-                was_deleted = delete_pipedrive_package_template(pk)  # On delete, the pk is actually the pipedrive_id
+                was_deleted = delete_pipedrive_package_template(pk, owner)  # On delete, the pk is actually the pipedrive_id
                 if not was_deleted:
                     logger.error('*** Failed to delete package_template in Pipedrive ***')
                 return False
@@ -91,7 +91,7 @@ def sync_pipedrive(pk, action, type):
 
             # *** Delete Existing Pipedrive Deal ***
             elif action == 'delete':
-                was_deleted = delete_pipedrive_deal(pk)  # On delete, the pk is actually the pipedrive_id
+                was_deleted = delete_pipedrive_deal(pk, owner)  # On delete, the pk is actually the pipedrive_id
                 if not was_deleted:
                     logger.error('*** Failed to delete deal in Pipedrive ***')
                 return was_deleted
@@ -115,7 +115,7 @@ def sync_pipedrive(pk, action, type):
 
             # *** Delete Existing Pipedrive Deal ***
             elif action == 'delete':
-                was_deleted = delete_pipedrive_service_package(service_package)
+                was_deleted = delete_pipedrive_service_package(service_package, owner)
 
         elif type == 'lead':
             print('\n\nCREATING PIPEDRRIVE LEAD\n\n')

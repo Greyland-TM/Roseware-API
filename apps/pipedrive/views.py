@@ -731,6 +731,8 @@ class DealSyncWebhook(APIView):
                             package_plan=package_plan,
                         )
                         stripe_subscription.save()
+                        package_plan.status = 'won'
+                        package_plan.save()
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
                 else:
                     print('Creating a new subscription for the customer. Sending invoice now...')

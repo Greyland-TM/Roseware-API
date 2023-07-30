@@ -485,21 +485,20 @@ def update_pipedrive_customer(customer):
         return False
 
 """ DELETE CUSTOMER IN PIPEDRIVE """
-def delete_pipedrive_customer(pipedrive_id):
+def delete_pipedrive_customer(pipedrive_id, owner):
     from apps.accounts.models import Customer
     
     try:
         # Delete the pipedrive product from a pipedrve deal
-        customer_owner = Customer.objects.get(pipedrive_id=pipedrive_id)
-        if customer_owner.package_plan.owner.is_staff:
+        if owner.is_staff:
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{pipedrive_id}?api_token={pipedrive_key}'
             response = requests.delete(url)
         else:
-            pipedrive_domain = customer_owner.package_plan.owner.piprdrive_api_url
+            pipedrive_domain = owner.piprdrive_api_url
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/persons/{pipedrive_id}'
-            customer = Customer.objects.get(user=customer_owner.package_plan.owner)
+            customer = Customer.objects.get(user=owner)
             tokens = get_pipedrive_oauth_tokens(customer.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -676,21 +675,19 @@ def update_pipedrive_package_template(package_template):
         return False
 
 """ DELETE PACKAGE IN PIPEDRIVE """
-def delete_pipedrive_package_template(pipedrive_id):
-    from apps.package_manager.models import PackageTemplate
+def delete_pipedrive_package_template(pipedrive_id, owner):
     
     try:
         # Delete the customer in Pipedrive
-        package_template = PackageTemplate.objects.get(pipedrive_id=pipedrive_id)
-        if package_template.package_plan.owner.is_staff:
+        if owner.is_staff:
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{pipedrive_id}?api_token={pipedrive_key}'
             response = requests.delete(url)
         else:
-            pipedrive_domain = package_template.package_plan.owner.piprdrive_api_url
+            pipedrive_domain = owner.piprdrive_api_url
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/products/{pipedrive_id}'
-            customer = Customer.objects.get(user=package_template.package_plan.owner)
+            customer = Customer.objects.get(user=owner)
             tokens = get_pipedrive_oauth_tokens(customer.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -837,21 +834,18 @@ def update_pipedrive_deal(package_plan):
         return False
 
 """ DELETE DEAL IN PIPEDRIVE """
-def delete_pipedrive_deal(deal_id):
-    from apps.package_manager.models import PackagePlan
-    
+def delete_pipedrive_deal(deal_id, owner):
     try:
         # Delete the deal in Pipedrive
-        package_plan = PackagePlan.objects.get(pipedrive_id=deal_id)
-        if package_plan.package_plan.owner.is_staff:
+        if owner.is_staff:
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{deal_id}?api_token={pipedrive_key}'
             response = requests.delete(url)
         else:
-            pipedrive_domain = package_plan.package_plan.owner.piprdrive_api_url
+            pipedrive_domain = owner.piprdrive_api_url
             url = f'https://{pipedrive_domain}.pipedrive.com/v1/deals/{deal_id}'
-            customer = Customer.objects.get(user=package_plan.package_plan.owner)
+            customer = Customer.objects.get(user=owner)
             tokens = get_pipedrive_oauth_tokens(customer.pk)
             headers = {
                 'Authorization': f'Bearer {tokens["access_token"]}',
@@ -959,10 +953,10 @@ def update_pipedrive_service_package(service_package):
         return False
 
 """ DELETE PRODUCT IN PIPEDRIVE DEAL """""
-def delete_pipedrive_service_package(service_package):
+def delete_pipedrive_service_package(service_package, owner):
     try:
         # Delete the pipedrive product from a pipedrve deal
-        if service_package.package_plan.owner.is_staff:
+        if owner.is_staff:
             pipedrive_key = os.environ.get('PIPEDRIVE_API_KEY')
             pipedrive_domain = os.environ.get('PIPEDRIVE_DOMAIN')
             url = f'https://{pipedrive_domain}.pipedrive.com/v1'
