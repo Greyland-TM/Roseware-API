@@ -48,13 +48,14 @@ class ServicePackageTemplateView(APIView):
                     return Response({"ok": False, "error": f"Missing required field: {field}"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Employees Only
-            user = request.user
-            if not hasattr(user, "employee") or not user.employee:
-                return Response({"ok": False, "error": "Not Authorized, Employees Only"}, status=status.HTTP_401_UNAUTHORIZED)
+            # user = request.user
+            # if not hasattr(user, "employee") or not user.employee:
+            #     return Response({"ok": False, "error": "Not Authorized, Employees Only"}, status=status.HTTP_401_UNAUTHORIZED)
 
             # Create the new package template
             data = request.data
             new_package_template = ServicePackageTemplate(
+                owner=request.user,
                 name=data["name"],
                 description=data["description"],
                 cost=data["cost"],
@@ -198,11 +199,11 @@ class PackagePlanView(APIView):
 
             # Create a new package plan with required fields
             package_plan = PackagePlan(
+                owner=user,
                 customer=customer,
                 name=data["name"],
                 type=data["type"],
             )
-
             # Update the optional fields from the request data
             for field in fields_to_assign:
                 if field in data:
@@ -421,6 +422,7 @@ class ProfilePackage(APIView):
         try:
             customer = Customer.objects.get(pk=customer_pk)
             new_package_plan = PackagePlan(
+                owner=request.user,
                 customer=customer,
                 name=packages["name"],
                 status=packages["status"],
