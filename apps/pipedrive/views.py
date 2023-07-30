@@ -121,7 +121,7 @@ class PipedriveOauth(APIView):
             create_pipedrive_type_fields(customer.pk)
             create_pipedrive_stripe_url_fields(customer.pk)
 
-            return Response({"ok": True, "message": "Access token stored successfully.", "customer_data": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
+            return Response({"ok": True, "message": "Access token stored successfully.", "customer": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
         except Exception as e:
             print(f'Error getting Oauth tokens from Pipedrive: {e}')
             return Response({"ok": False, "message": "Error getting access token."}, status=status.HTTP_400_BAD_REQUEST)
