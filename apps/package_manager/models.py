@@ -52,17 +52,18 @@ class ServicePackageTemplate(models.Model):
         super(ServicePackageTemplate, self).save(*args, **kwargs)
 
         if is_new:
-            create_package_template_sync(self, should_sync_pipedrive, should_sync_stripe)
+            create_package_template_sync(self, should_sync_pipedrive, should_sync_stripe, self.owner)
         else:
-            update_package_template_sync(self, should_sync_pipedrive, should_sync_stripe)
+            update_package_template_sync(self, should_sync_pipedrive, should_sync_stripe, self.owner)
 
     def delete(self, should_sync_pipedrive=True, should_sync_stripe=True, *args, **kwargs):
         from .utils import delete_package_template_sync
 
         pipedrive_id = self.pipedrive_id
         stripe_id = self.stripe_product_id
+        owner = self.owner
         super(ServicePackageTemplate, self).delete(*args, **kwargs)
-        delete_package_template_sync(stripe_id, pipedrive_id, should_sync_pipedrive, should_sync_stripe)
+        delete_package_template_sync(stripe_id, pipedrive_id, should_sync_pipedrive, should_sync_stripe, owner)
 
 class PackagePlan(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="package_plan_owner", null=True, blank=True)
@@ -84,18 +85,19 @@ class PackagePlan(models.Model):
         super(PackagePlan, self).save(*args, **kwargs)
 
         if is_new:
-            create_package_plan_sync(self, should_sync_pipedrive, should_sync_stripe)
+            create_package_plan_sync(self, should_sync_pipedrive, should_sync_stripe, self.owner)
         else:
-            update_package_plan_sync(self, should_sync_pipedrive, should_sync_stripe)
+            update_package_plan_sync(self, should_sync_pipedrive, should_sync_stripe, self.owner)
 
     def delete(self, should_sync_pipedrive=True, should_sync_stripe=True, *args, **kwargs):
         from .utils import delete_package_plan_sync
 
         pk = self.pipedrive_id
         stripe_subscription_id = self.stripe_subscription_id
+        owner = self.owner
         super(PackagePlan, self).delete(*args, **kwargs)
 
-        delete_package_plan_sync(pk, stripe_subscription_id, should_sync_pipedrive, should_sync_stripe)
+        delete_package_plan_sync(pk, stripe_subscription_id, should_sync_pipedrive, should_sync_stripe, owner)
 
 class ServicePackage(models.Model):
     """This model will be used to store the templates for posts."""
@@ -141,16 +143,15 @@ class ServicePackage(models.Model):
         super(ServicePackage, self).save(*args, **kwargs)
 
         if is_new:
-            create_service_package_sync(self, should_sync_pipedrive, should_sync_stripe)
+            create_service_package_sync(self, should_sync_pipedrive, should_sync_stripe, self.package_plan.owner)
         else:
-            update_service_package_sync(self, should_sync_pipedrive, should_sync_stripe)
+            update_service_package_sync(self, should_sync_pipedrive, should_sync_stripe, self.package_plan.owner)
 
     def delete(self, should_sync_pipedrive=True, should_sync_stripe=True, *args, **kwargs):
         from .utils import delete_service_package_sync
 
         piperive_id = self.pipedrive_product_attachment_id
-        # Get the subscription item id before deleting the service package
         stripe_subscription_item_id = self.package_plan.stripe_subscription_id
+        owner = self.owner
         super(ServicePackage, self).delete(*args, **kwargs)
-
-        delete_service_package_sync(piperive_id, stripe_subscription_item_id, should_sync_pipedrive, should_sync_stripe, )
+        delete_service_package_sync(piperive_id, stripe_subscription_item_id, should_sync_pipedrive, should_sync_stripe, owner)
