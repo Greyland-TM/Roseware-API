@@ -45,9 +45,21 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    
+    status = serializers.SerializerMethodField("get_customer_status")
+    
+    def get_customer_status(self, obj=None):
+        from .models import Customer
+        try:
+            customer = Customer.objects.get(user=obj)
+            return customer.status
+        except Exception as error:
+            print(f'Error getting customer status: {error}')
+            return None
+    
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "password")
+        fields = ("id", "username", "email", "first_name", "last_name", "password", "status")
 
 
 class RegisterSerializer(serializers.ModelSerializer):
