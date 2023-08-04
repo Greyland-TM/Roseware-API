@@ -18,7 +18,6 @@ class Customer(models.Model):
 
     # Choices
     STATUS_CHOICE_FIELDS = (('lead', 'Lead'), ('customer', 'Customer'))
-    # TYPE_CHOICE_FIELDS = (('client', 'Client'), ('contact', 'Contact'))
 
     # Fields
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -28,7 +27,6 @@ class Customer(models.Model):
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
     phone = PhoneNumberField(null=True, blank=True)
-    # type = CharField(default="client", max_length=100, choices=TYPE_CHOICE_FIELDS, null=True, blank=True)
     status = CharField(default="lead", max_length=100, choices=STATUS_CHOICE_FIELDS)
     onboarding_date = DateTimeField(null=True, blank=True)
     monday_id = CharField(default="", max_length=100, null=True, blank=True)

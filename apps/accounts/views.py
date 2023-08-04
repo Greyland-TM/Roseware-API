@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from knox.views import LogoutView as KnoxLogoutView
 
 from apps.pipedrive.tasks import sync_pipedrive
-
+import secrets
 from .models import Customer, Employee
 from .serializers import (CustomerSerializer, LoginSerializer,
                           RegisterSerializer, UserSerializer)
@@ -27,6 +27,7 @@ class LoginAPIView(generics.GenericAPIView):
             serializer.is_valid(raise_exception=True)
             user = serializer.validated_data
             token = AuthToken.objects.create(user)[1]
+            
             return Response( 
                 {
                     "user": UserSerializer(user, context=self.get_serializer_context()).data,
@@ -71,6 +72,37 @@ class CreateCustomerAPIView(APIView):
                 return Response({"ok": False, "error": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
             password = request.data.get("password")
+            if not password:  # Generate a new random password if it's not provided
+                password = secrets.token_hex(16)  # Create a 32 character long random string
+                
+            # Check if there is an existing lead for this email, if there is just update their info
+            try:
+                customer = Customer.objects.get(email=request.data.get("email", None))
+                if customer.status == 'lead':
+                    user = customer.user
+                    user.first_name = request.data.get("first_name", None)
+                    user.last_name = request.data.get("last_name", None)
+                    user.username = request.data.get("email", None) # assuming the username is email
+                    user.set_password(password)
+                    user.save()
+
+                    customer.status = 'customer'
+                    customer.first_name = request.data.get("first_name", None)
+                    customer.last_name = request.data.get("last_name", None)
+                    customer.phone = request.data.get("phone", None)
+                    customer.save()
+                    token = AuthToken.objects.create(user)[1]
+                    return Response(
+                        {
+                            "user": UserSerializer(user).data,
+                            "token": token,
+                        }
+                    )
+            except Exception as error:
+                print(error)
+                
+            # TODO - Important - If the request is coming from an email that exists as a lead, then update the lead to a customer, and return an auth token in the response
+
             # If type and password are not sent in request then save as defaults here...
             new_user_data = {
                 "first_name": request.data.get("first_name", None),
@@ -98,6 +130,10 @@ class CreateCustomerAPIView(APIView):
                 owner = customer.user
             else:
                 owner = representative.user
+                
+            status = request.data.get("status")
+            if not status:
+                status = None
 
             # Create the customer
             customer = Customer(
@@ -105,6 +141,7 @@ class CreateCustomerAPIView(APIView):
                 owner=owner,
                 rep=representative,
                 phone=request.data["phone"],
+                status=status,
             )
             customer.save()
             
