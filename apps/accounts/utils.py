@@ -7,7 +7,6 @@ from apps.stripe.tasks import sync_stripe
 
 from .models import OngoingSync
 
-
 def update_or_create_ongoing_sync(type, action, should_sync_stripe, should_sync_pipedrive, sync_platform, owner):
     # check for an ongoing roseware sync
     ongoing_sync = OngoingSync.objects.filter(type=type, action=action, owner=owner).first()

@@ -9,6 +9,11 @@ class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     first_name = CharField(default="Joe", max_length=100)
     last_name = CharField(default="Dierte", max_length=100)
+    role = CharField(default="sales", max_length=100)
+    bio = CharField(default="", max_length=1000)
+    linkedin = CharField(default="", max_length=100)
+    github = CharField(default="", max_length=100)
+    display_on_website = models.BooleanField(default=False)
 
     def __str__(self):
         return self.first_name
@@ -26,7 +31,8 @@ class Customer(models.Model):
     first_name = CharField(default="", max_length=100, null=False, blank=False)
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
-    phone = PhoneNumberField(null=True, blank=True)
+    phone = CharField(null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profilte_picture/', null=True, blank=True)
     status = CharField(default="lead", max_length=100, choices=STATUS_CHOICE_FIELDS)
     onboarding_date = DateTimeField(null=True, blank=True)
     monday_id = CharField(default="", max_length=100, null=True, blank=True)
@@ -87,6 +93,14 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.first_name
+    
+class Organization(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organization_owner", null=True, blank=True)
+    name = CharField(default="", max_length=100, null=False, blank=False)
+    address = CharField(default="", max_length=100, null=False, blank=False)
+    
+    def __str__(self):
+        return self.name
 
 class OngoingSync(models.Model):
     """

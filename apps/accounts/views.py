@@ -1,21 +1,24 @@
 # from datetime import datetime
 # from rest_framework.decorators import authentication_classes, permission_classes
 # import authentication_classes
+import secrets
+
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
+from knox.views import LogoutView as KnoxLogoutView
 from rest_framework import generics, status
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from knox.views import LogoutView as KnoxLogoutView
 
 from apps.pipedrive.tasks import sync_pipedrive
-import secrets
-from .models import Customer, Employee
+
+from .models import Customer, Employee, Organization
 from .serializers import (CustomerSerializer, LoginSerializer,
-                          RegisterSerializer, UserSerializer)
+                          OrganizationSerializer, RegisterSerializer,
+                          UserSerializer)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -75,33 +78,34 @@ class CreateCustomerAPIView(APIView):
             if not password:  # Generate a new random password if it's not provided
                 password = secrets.token_hex(16)  # Create a 32 character long random string
                 
-            # Check if there is an existing lead for this email, if there is just update their info
-            try:
-                customer = Customer.objects.get(email=request.data.get("email", None))
-                if customer.status == 'lead':
-                    user = customer.user
+            # Check if there is an existing customer for this email
+            data = request.data
+            existing_customer = Customer.objects.filter(email=data.get("email")).first()
+            if existing_customer:
+                if existing_customer.status == 'customer':
+                    return Response({"ok": False, "error": "A customer with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # If it's a lead, update their info
+                if existing_customer.status == 'lead':
+                    user = existing_customer.user
                     user.first_name = request.data.get("first_name", None)
                     user.last_name = request.data.get("last_name", None)
                     user.username = request.data.get("email", None) # assuming the username is email
                     user.set_password(password)
                     user.save()
 
-                    customer.status = 'customer'
-                    customer.first_name = request.data.get("first_name", None)
-                    customer.last_name = request.data.get("last_name", None)
-                    customer.phone = request.data.get("phone", None)
-                    customer.save()
+                    existing_customer.status = 'customer'
+                    existing_customer.first_name = request.data.get("first_name", None)
+                    existing_customer.last_name = request.data.get("last_name", None)
+                    existing_customer.phone = request.data.get("phone", None)
+                    existing_customer.save()
                     token = AuthToken.objects.create(user)[1]
                     return Response(
                         {
-                            "user": UserSerializer(user).data,
+                            "user": CustomerSerializer(existing_customer).data,
                             "token": token,
                         }
                     )
-            except Exception as error:
-                print(error)
-                
-            # TODO - Important - If the request is coming from an email that exists as a lead, then update the lead to a customer, and return an auth token in the response
 
             # If type and password are not sent in request then save as defaults here...
             new_user_data = {
@@ -133,7 +137,7 @@ class CreateCustomerAPIView(APIView):
                 
             status = request.data.get("status")
             if not status:
-                status = None
+                status = 'lead'
 
             # Create the customer
             customer = Customer(
@@ -155,7 +159,7 @@ class CreateCustomerAPIView(APIView):
             token = AuthToken.objects.create(user)[1]
             return Response(
                 {
-                    "user": UserSerializer(user).data,
+                    "user": CustomerSerializer(user).data,
                     "token": token,
                 }
             )
@@ -217,7 +221,7 @@ class CustomerAPIView(APIView):
 
                 # If not, and the pk to update is not the user's pk, return an error
                 customer = Customer.objects.get(user=user)
-                if customer.pk != request.data["pk"]:
+                if customer.pk != int(request.data["pk"]):
                     return Response(
                         {"ok": False, "error": "Not Authorized"},
                         status=status.HTTP_401_UNAUTHORIZED
@@ -235,13 +239,40 @@ class CustomerAPIView(APIView):
             customer = Customer.objects.get(pk=request.data["pk"])
             if not customer:
                 return Response({"ok": False, "error": "Customer not found"}, status=status.HTTP_400_BAD_REQUEST)
-
             customer.first_name = request.data["first_name"]
             customer.last_name = request.data["last_name"]
             customer.phone = request.data["phone"]
+
+            # Update the profile picture if it exists in the request
+            profile_picture = request.FILES.get('profile_picture')
+            if profile_picture:
+                customer.profile_picture = profile_picture
+
             customer.save()
             return Response({"ok": True, "customer": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
 
         except Exception as error:
             print(f"*** Error 2: {error}")
+            return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+class OrganizationsView(APIView):
+    def post(self, request):
+        try:
+            # Make sure the request has the required fields
+            required_fields = ["name"]
+            missing_fields = [field for field in required_fields if field not in request.data]
+            if missing_fields:
+                missing_fields_str = ", ".join(missing_fields)
+                error_message = f"Missing required fields: {missing_fields_str}"
+                return Response({"ok": False, "error": error_message}, status=status.HTTP_400_BAD_REQUEST)
+            name = request.data["name"]
+            organization, created = Organization.objects.get_or_create(name=name)
+            
+            if not created:
+                organization.name = name
+                organization.save()
+                
+            return Response({"ok": True, "organization": OrganizationSerializer(organization).data}, status=status.HTTP_200_OK)
+        except Exception as error:
+            print('Error creating organization: ', error)
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
