@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from apps.accounts.models import Customer, Employee
+from apps.accounts.models import Customer, Employee, Organization
 
 User._meta.get_field("email")._unique = True
 
@@ -31,6 +31,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = (
             "id",
+            "profile_picture",
             "first_name",
             "last_name",
             "email",
@@ -42,6 +43,10 @@ class CustomerSerializer(serializers.ModelSerializer):
             "has_synced_pipedrive",
             "has_synced_stripe",
         )
+        
+class OrganizationSerializer(serializers.ModelSerializer):
+    model = Organization
+    fields = ("name",)
 
 
 class UserSerializer(serializers.ModelSerializer):

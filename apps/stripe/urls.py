@@ -1,17 +1,13 @@
-from django.urls import path, include
-from .views import (
-    CustomerCreateWebhook,
-    CustomerSyncWebhook,
-    CustomerDeleteWebhook,
-    ProductCreateWebhook,
-    ProductSyncWebhook,
-    ProductDeleteWebhook,
-    SubscriptionCreateWebhook,
-    SubscriptionSyncWebhook,
-    SubscriptionDeleteWebhook,
-)
+from django.urls import include, path
+
+from .views import (CustomerCreateWebhook, CustomerDeleteWebhook,
+                    CustomerSyncWebhook, PaymentDetailsView,
+                    ProductCreateWebhook, ProductDeleteWebhook,
+                    ProductSyncWebhook, SubscriptionCreateWebhook,
+                    SubscriptionDeleteWebhook, SubscriptionSyncWebhook)
 
 urlpatterns = [
+    path("payment-details/", PaymentDetailsView.as_view(), name="payment-details"),
     path("customer-create-webhook/", CustomerCreateWebhook.as_view()),
     path("customer-sync-webhook/", CustomerSyncWebhook.as_view()),
     path("customer-delete-webhook/", CustomerDeleteWebhook.as_view()),

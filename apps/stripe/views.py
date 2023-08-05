@@ -16,6 +16,11 @@ from apps.package_manager.models import (PackagePlan, ServicePackage,
 
 stripe.api_key = os.environ.get('STRIPE_PRIVATE')
 
+class PaymentDetailsView(APIView):
+    def post(self, request):
+        print('setting up payment details')
+        return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Payment details set up successfully."})
+
 class ProductCreateWebhook(APIView):
     """ API view for creating a new product in stripe """
 
