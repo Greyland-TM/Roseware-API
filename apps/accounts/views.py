@@ -239,16 +239,15 @@ class CustomerAPIView(APIView):
             customer = Customer.objects.get(pk=request.data["pk"])
             if not customer:
                 return Response({"ok": False, "error": "Customer not found"}, status=status.HTTP_400_BAD_REQUEST)
-
             customer.first_name = request.data["first_name"]
             customer.last_name = request.data["last_name"]
             customer.phone = request.data["phone"]
-            print('saving image')
+
             # Update the profile picture if it exists in the request
             profile_picture = request.FILES.get('profile_picture')
             if profile_picture:
                 customer.profile_picture = profile_picture
-            
+
             customer.save()
             return Response({"ok": True, "customer": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
 
