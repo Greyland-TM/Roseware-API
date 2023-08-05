@@ -1,21 +1,24 @@
 # from datetime import datetime
 # from rest_framework.decorators import authentication_classes, permission_classes
 # import authentication_classes
+import secrets
+
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
+from knox.views import LogoutView as KnoxLogoutView
 from rest_framework import generics, status
 from rest_framework.authentication import (BasicAuthentication,
                                            SessionAuthentication)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from knox.views import LogoutView as KnoxLogoutView
 
 from apps.pipedrive.tasks import sync_pipedrive
-import secrets
+
 from .models import Customer, Employee, Organization
 from .serializers import (CustomerSerializer, LoginSerializer,
-                          RegisterSerializer, UserSerializer, OrganizationSerializer)
+                          OrganizationSerializer, RegisterSerializer,
+                          UserSerializer)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -77,11 +80,8 @@ class CreateCustomerAPIView(APIView):
                 
             # Check if there is an existing customer for this email
             data = request.data
-            # print(data)
             existing_customer = Customer.objects.filter(email=data.get("email")).first()
-            # print(existing_customer)
             if existing_customer:
-                # If the customer with the same email already exists as a 'customer', then return a 400
                 if existing_customer.status == 'customer':
                     return Response({"ok": False, "error": "A customer with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -106,8 +106,6 @@ class CreateCustomerAPIView(APIView):
                             "token": token,
                         }
                     )
-                
-            # TODO - Important - If the request is coming from an email that exists as a lead, then update the lead to a customer, and return an auth token in the response
 
             # If type and password are not sent in request then save as defaults here...
             new_user_data = {
@@ -161,7 +159,7 @@ class CreateCustomerAPIView(APIView):
             token = AuthToken.objects.create(user)[1]
             return Response(
                 {
-                    "user": UserSerializer(user).data,
+                    "user": CustomerSerializer(user).data,
                     "token": token,
                 }
             )
@@ -223,7 +221,7 @@ class CustomerAPIView(APIView):
 
                 # If not, and the pk to update is not the user's pk, return an error
                 customer = Customer.objects.get(user=user)
-                if customer.pk != request.data["pk"]:
+                if customer.pk != int(request.data["pk"]):
                     return Response(
                         {"ok": False, "error": "Not Authorized"},
                         status=status.HTTP_401_UNAUTHORIZED
@@ -245,6 +243,12 @@ class CustomerAPIView(APIView):
             customer.first_name = request.data["first_name"]
             customer.last_name = request.data["last_name"]
             customer.phone = request.data["phone"]
+            print('saving image')
+            # Update the profile picture if it exists in the request
+            profile_picture = request.FILES.get('profile_picture')
+            if profile_picture:
+                customer.profile_picture = profile_picture
+            
             customer.save()
             return Response({"ok": True, "customer": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
 

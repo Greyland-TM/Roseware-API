@@ -32,6 +32,7 @@ class Customer(models.Model):
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
     phone = CharField(null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profilte_picture/', null=True, blank=True)
     status = CharField(default="lead", max_length=100, choices=STATUS_CHOICE_FIELDS)
     onboarding_date = DateTimeField(null=True, blank=True)
     monday_id = CharField(default="", max_length=100, null=True, blank=True)

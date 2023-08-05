@@ -31,6 +31,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = (
             "id",
+            "profile_picture",
             "first_name",
             "last_name",
             "email",
