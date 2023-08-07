@@ -17,8 +17,7 @@ from apps.pipedrive.tasks import sync_pipedrive
 
 from .models import Customer, Employee, Organization
 from .serializers import (CustomerSerializer, LoginSerializer,
-                          OrganizationSerializer, RegisterSerializer,
-                          UserSerializer)
+                          OrganizationSerializer, RegisterSerializer)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -31,9 +30,11 @@ class LoginAPIView(generics.GenericAPIView):
             user = serializer.validated_data
             token = AuthToken.objects.create(user)[1]
             
+            customer = Customer.objects.filter(user=user).first()
+            
             return Response( 
                 {
-                    "user": UserSerializer(user, context=self.get_serializer_context()).data,
+                    "user": CustomerSerializer(customer).data,
                     "token": token,
                 }
             )
@@ -59,7 +60,7 @@ class LogoutView(KnoxLogoutView):
 class CreateCustomerAPIView(APIView):
     """API view to create a customer"""
 
-    serializer_class = UserSerializer
+    serializer_class = CustomerSerializer
     permission_classes = [AllowAny]
     authentication_classes = [SessionAuthentication, BasicAuthentication]
 
@@ -159,7 +160,7 @@ class CreateCustomerAPIView(APIView):
             token = AuthToken.objects.create(user)[1]
             return Response(
                 {
-                    "user": CustomerSerializer(user).data,
+                    "user": CustomerSerializer(customer).data,
                     "token": token,
                 }
             )
@@ -171,7 +172,7 @@ class CreateCustomerAPIView(APIView):
 class CustomerAPIView(APIView):
     """API view for customers"""
 
-    serializer_class = UserSerializer
+    serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
 
