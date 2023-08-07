@@ -82,7 +82,7 @@ class PipedriveOauth(APIView):
                 name=f'{customer.first_name} {customer.last_name} - Deal',
                 defaults={'status': 'active'}
             )
-            package_template = ServicePackageTemplate.objects.get(name="Roseware - Pipedrive Stripe Sync")
+            package_template = ServicePackageTemplate.objects.filter(name="Roseware - Pipedrive Stripe Sync").first()
             if created:
                 setup_payment_details(customer=customer, payment_details={
                     "card_number": "4242424242424242",
