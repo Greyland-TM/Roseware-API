@@ -42,6 +42,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "package_plans",
             "has_synced_pipedrive",
             "has_synced_stripe",
+            "beta_feature_flag"
         )
         
 class OrganizationSerializer(serializers.ModelSerializer):
