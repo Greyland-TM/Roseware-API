@@ -3,6 +3,7 @@ import json
 import time
 import stripe
 import requests
+from roseware.utils import make_logger
 from rest_framework import status
 from rest_framework.views import APIView
 from knox.auth import TokenAuthentication
@@ -20,6 +21,7 @@ from .utils import (create_pipedrive_stripe_url_fields,
                     create_pipedrive_type_fields, create_pipedrive_webhooks,
                     set_pipedrive_keys)
 
+logger = make_logger(__name__)
 
 class PipedriveOauth(APIView):
     """

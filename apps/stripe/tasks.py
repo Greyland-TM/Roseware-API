@@ -18,7 +18,7 @@ from .utils import (
     delete_stripe_subscription,
 )
 
-logger = make_logger()
+logger = make_logger(__name__)
 
 
 @app.task(default_retry_delay=10, max_retries=3, autoretry_for=(Exception, ))

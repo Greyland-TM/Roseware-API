@@ -15,7 +15,7 @@ from .utils import (create_pipedrive_customer, create_pipedrive_deal,
                     update_pipedrive_service_package)
 
 # set up the logger
-logger = make_logger()
+logger = make_logger(__name__)
 
 @app.task(default_retry_delay=10, max_retries=3)
 def sync_pipedrive(pk, action, type, owner=None):
