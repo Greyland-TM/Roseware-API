@@ -45,10 +45,9 @@ app.conf.beat_schedule = {
 ### Debug task ###
 @app.task
 def debug():
-    logger.warning("==================================")
-    logger.debug("this is a debug test! :)|-<       ||")
-    logger.info("this is an info test! :)|-<        ||")
-    logger.warning("this is a warning test! :)|-<   ||")
-    logger.error("this is an error test! :)|-<      ||")
-    logger.critical("this is a critical test! :)|-< ||")
-    logger.warning("==================================")
+    logger.debug("this is a debug test!")
+    logger.info("this is an info test")
+    logger.warning("this is a warning test!")
+    logger.error("this is an error test!")
+    logger.critical("this is a critical test!")
+
