@@ -175,7 +175,7 @@ LOGGING = {
             "style": "{",
         },
         "simple": {
-            "format": "{levelname}: {message}",
+            "format": "{module}: {message}",
             "style": "{",
         },
     },

@@ -19,6 +19,7 @@ def make_logger(
         "[%(asctime)s] [%(name)s] [%(levelname)s]: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
     if stream:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(log_level)
@@ -34,6 +35,7 @@ def make_logger(
     file_handler.setLevel(log_level)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+
     logger.propagate = set_propagate
 
     return logger
