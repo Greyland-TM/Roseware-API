@@ -18,7 +18,7 @@ from .utils import (
     delete_stripe_subscription,
 )
 
-logger = make_logger(__name__)
+logger = make_logger(__name__, stream=True)
 
 
 @app.task(default_retry_delay=10, max_retries=3, autoretry_for=(Exception, ))
@@ -111,9 +111,9 @@ def sync_stripe(pk, action, type):
 
             # *** Update Existing Stripe Subscription ***
             elif action == 'update':
-                print(f'Updating Stripe Subscription: {pk}')
+                logger.info(f'Updating Stripe Subscription: {pk}')
                 subscription = StripeSubscription.objects.filter(pk=pk).first()
-                print(f'Subscription: {subscription}')
+                logger.info(f'Subscription: {subscription}')
                 was_subscription_updated = update_stripe_subscription(subscription)
                 if not was_subscription_updated:
                     logger.error('*** Failed to update subscription in Stripe ***')

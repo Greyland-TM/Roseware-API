@@ -3,6 +3,9 @@ from django.core.management.base import BaseCommand
 from apps.accounts.models import Customer
 from apps.marketing_manager.models import WeeklyTopic
 from apps.marketing_manager.utils import create_monthly_marketing_schedule
+from roseware.utils import make_logger
+
+logger = make_logger(__name__, stream=True)
 
 
 class Command(BaseCommand):
@@ -16,6 +19,6 @@ class Command(BaseCommand):
         monthly_marketing_schedule = create_monthly_marketing_schedule(customer)
         
         if monthly_marketing_schedule:
-            print("Monthly Marketing Schedule Created")
+            logger.info("Monthly Marketing Schedule Created")
         else:
-            print("Failed to create Monthly Marketing Schedule")
+            logger.error("Failed to create Monthly Marketing Schedule")

@@ -15,7 +15,7 @@ from .utils import (create_pipedrive_customer, create_pipedrive_deal,
                     update_pipedrive_service_package)
 
 # set up the logger
-logger = make_logger(__name__)
+logger = make_logger(__name__, stream=True)
 
 @app.task(default_retry_delay=10, max_retries=3)
 def sync_pipedrive(pk, action, type, owner=None):
@@ -118,7 +118,7 @@ def sync_pipedrive(pk, action, type, owner=None):
                 was_deleted = delete_pipedrive_service_package(service_package, owner)
 
         elif type == 'lead':
-            print('\n\nCREATING PIPEDRRIVE LEAD\n\n')
+            logger.info('\n\nCREATING PIPEDRRIVE LEAD\n\n')
             customer_qs = Customer.objects.filter(pk=pk)
             customer = customer_qs.first()
 

@@ -18,6 +18,9 @@ from apps.pipedrive.tasks import sync_pipedrive
 from .models import Customer, Employee, Organization
 from .serializers import (CustomerSerializer, LoginSerializer,
                           OrganizationSerializer, RegisterSerializer)
+from roseware.utils import make_logger
+
+logger = make_logger(__name__)
 
 
 class LoginAPIView(generics.GenericAPIView):
@@ -39,7 +42,7 @@ class LoginAPIView(generics.GenericAPIView):
                 }
             )
         except Exception as error:
-            print(f"Error logging in: {error}")
+            logger.error(f"Error logging in: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(KnoxLogoutView):
@@ -52,7 +55,7 @@ class LogoutView(KnoxLogoutView):
             super().post(request, format=None)
             return Response({"ok": True, "message": "Successfully logged out."}, status=200)
         except Exception as error:
-            print(f'Error logging out: {error}')
+            logger.error(f'Error logging out: {error}')
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -166,7 +169,7 @@ class CreateCustomerAPIView(APIView):
             )
 
         except Exception as error:
-            print(f"*** Error 2: {error}")
+            logger.error(f"*** Error 2: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomerAPIView(APIView):
@@ -209,7 +212,7 @@ class CustomerAPIView(APIView):
             customer = Customer.objects.get(pk=customer_pk)
             return Response({"ok": True, "customer": CustomerSerializer(customer).data})
         except Exception as error:
-            print(f"Error: {error}")
+            logger.error(f"Error: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request):
@@ -253,7 +256,7 @@ class CustomerAPIView(APIView):
             return Response({"ok": True, "customer": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
 
         except Exception as error:
-            print(f"*** Error 2: {error}")
+            logger.error(f"*** Error 2: {error}")
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
 class OrganizationsView(APIView):
@@ -275,5 +278,5 @@ class OrganizationsView(APIView):
                 
             return Response({"ok": True, "organization": OrganizationSerializer(organization).data}, status=status.HTTP_200_OK)
         except Exception as error:
-            print('Error creating organization: ', error)
+            logger.error('Error creating organization: ', error)
             return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
