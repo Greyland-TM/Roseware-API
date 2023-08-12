@@ -2,6 +2,9 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from apps.accounts.models import Customer, Employee, Organization
+from roseware.utils import make_logger
+
+logger = make_logger(__name__)
 
 User._meta.get_field("email")._unique = True
 
@@ -60,7 +63,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 #             customer = Customer.objects.get(user=obj)
 #             return customer.status
 #         except Exception as error:
-#             print(f'Error getting customer status: {error}')
+#             logger.error(f'Error getting customer status: {error}')
 #             return None
     
 #     class Meta:
@@ -83,7 +86,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                 last_name=validated_data["last_name"],
             )
         except Exception as e:
-            print('Failed to make user: ', e)
+            logger.error('Failed to make user: ', e)
         return user
 
 

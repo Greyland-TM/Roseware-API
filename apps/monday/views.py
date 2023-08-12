@@ -4,9 +4,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from apps.accounts.custom_auth import CustomAuthentication
+from roseware.utils import make_logger
 # from apps.accounts.models import Customer, Employee
 import requests
 import os
+
+logger = make_logger(__name__, stream=True)
 
 # Create your views here.
 class ProcessModayWebhook(APIView):
@@ -16,7 +19,7 @@ class ProcessModayWebhook(APIView):
     authentication_classes = [CustomAuthentication]
     
     def post(self, request, board_type):
-        print('IN THE REQUEST...')
+        logger.info('IN THE REQUEST...')
         
         # Make monday headers & url
         url = os.environ.get('MONDAY_API_URL')
@@ -27,7 +30,7 @@ class ProcessModayWebhook(APIView):
         elif board_type == 'package':
             board_id_env = os.environ.get('MONDAY_PACKAGES_BOARD_ID')
         else:
-            print('Invalid board type provided!') # TODO - Error handling
+            logger.error('Invalid board type provided!') # TODO - Error handling
         board_id = int(board_id_env)
         
         monday_api_key = os.environ.get(
