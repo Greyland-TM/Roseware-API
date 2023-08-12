@@ -226,7 +226,7 @@ _Initialization_
 You can create a logger by importing from `roseware.utils` and then calling the `make_logger()` function. This function accepts several parameters:
 
     name: A string representing the name of the logger instance. You can for the most part use `__name__` for this to name it after the module it's called in.
-    stream: A boolean value to determine whether to log to the console or not. Set to True to enable console logging.
+    stream: A boolean value to determine whether to log to the console or not. Set to True to enable console logging (default is false).
     file_name: The path to the log file for general logs (default is "logs/general.log").
     log_level: The logging level to set (default is logging.DEBUG).
     set_propagate: A boolean to determine whether to propagate the log to higher-level loggers (default is True).
