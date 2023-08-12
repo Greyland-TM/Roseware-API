@@ -198,9 +198,21 @@ LOGGING = {
             "handlers": ["console"],
         },
         "django": {
-            "handlers": ["file"],
+            "handlers": ["console"],
             "level": "DEBUG",
             "propagate": False,
         },
     },
 }
+
+if not os.path.exists("logs"):
+    # Remove the 'file' handler from the LOGGING dictionary
+    LOGGING["handlers"].pop("file", None)
+else:
+    # Only if logs directory exists, add the 'file' handler to LOGGING
+    LOGGING["handlers"]["file"] = {
+        "class": "logging.FileHandler",
+        "filename": "logs/debug.log",
+        "level": "DEBUG",
+        "formatter": "verbose",
+    }

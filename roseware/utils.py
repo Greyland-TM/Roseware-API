@@ -1,6 +1,6 @@
 ## Logging Imports
 import logging
-
+import os
 
 ### LOGGING ###
 
@@ -12,6 +12,8 @@ def make_logger(
     log_level=logging.DEBUG,
     set_propagate=True,
 ):
+    logs_dir = 'logs'
+    
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
 
@@ -26,15 +28,22 @@ def make_logger(
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
-    error_handler = logging.FileHandler("logs/errors.log")
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
-    logger.addHandler(error_handler)
+    if os.path.exists(logs_dir):
+        error_handler = logging.FileHandler(f"{logs_dir}/errors.log")
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(formatter)
+        logger.addHandler(error_handler)
 
-    file_handler = logging.FileHandler(file_name)
-    file_handler.setLevel(log_level)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+        file_handler = logging.FileHandler(file_name)
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    else:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.WARNING)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+        logger.warning(f"'{logs_dir}' directory does not exist. Create one to start logging.")
 
     logger.propagate = set_propagate
 
