@@ -6,6 +6,9 @@ from apps.pipedrive.tasks import sync_pipedrive
 from apps.stripe.tasks import sync_stripe
 
 from .models import OngoingSync
+from roseware.utils import make_logger
+
+logger = make_logger(__name__, stream=True)
 
 def update_or_create_ongoing_sync(type, action, should_sync_stripe, should_sync_pipedrive, sync_platform, owner):
     # check for an ongoing roseware sync
@@ -32,7 +35,7 @@ def update_or_create_ongoing_sync(type, action, should_sync_stripe, should_sync_
             )
             new_sync_object.save()
         except IntegrityError:
-            print("An object with this owner_id already exists.")
+            logger.error("An object with this owner_id already exists.")
         return
 
 def create_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
@@ -49,7 +52,7 @@ def create_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
 
     # Create the customer
     if should_sync_pipedrive:
-        print('Creating customer in pipedrive... (Check celery terminal)')
+        logger.info('Creating customer in pipedrive... (Check celery terminal)')
         sync_pipedrive.apply(kwargs={
             'pk': customer.pk,
             'action': 'create',
@@ -57,7 +60,7 @@ def create_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
         })
 
     if should_sync_stripe:
-        print('Creating customer in stripe... (Check celery terminal)')
+        logger.info('Creating customer in stripe... (Check celery terminal)')
         sync_stripe.apply(kwargs={
             'pk': customer.pk,
             'action': 'create',
@@ -72,23 +75,23 @@ def update_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
         return
 
     # Check for an ongoing sync
-    print('Updating or creating ongoing sync...')
+    logger.info('Updating or creating ongoing sync...')
     update_or_create_ongoing_sync('customer', 'update', should_sync_stripe, should_sync_pipedrive, sync_platform, customer.owner)
     # Update the customer
     if should_sync_pipedrive:
-        print('Updating customer in pipedrive... (Check celery terminal)')
+        logger.info('Updating customer in pipedrive... (Check celery terminal)')
         sync_pipedrive.delay(customer.pk, 'update', "customer")
 
     if should_sync_stripe:
-        print('Updating customer in stripe... (Check celery terminal)')
+        logger.info('Updating customer in stripe... (Check celery terminal)')
         sync_stripe.delay(customer.pk, 'update', "customer")
 
 def delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive):
     # Delete the customer
     if should_sync_pipedrive:
-        print('Deleting customer in pipedrive... (Check celery terminal)')
+        logger.info('Deleting customer in pipedrive... (Check celery terminal)')
         sync_pipedrive.delay(pipedrive_id, 'delete', "customer")
 
     if should_sync_stripe:
-        print('Deleting customer in stripe... (Check celery terminal)')
+        logger.info('Deleting customer in stripe... (Check celery terminal)')
         sync_stripe.delay(stripe_id, 'delete', "customer")

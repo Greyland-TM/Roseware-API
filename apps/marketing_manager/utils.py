@@ -9,6 +9,9 @@ from dateutil.relativedelta import relativedelta
 from dateutil.rrule import WEEKLY, rrule
 from pytz import timezone
 from .models import DailyContent, Day, MarketingSchedule, WeeklyTopic, SocialPost
+from roseware.utils import make_logger
+
+logger = make_logger(__name__, stream=True)
 
 
 def create_monthly_marketing_schedule(customer):
@@ -16,7 +19,7 @@ def create_monthly_marketing_schedule(customer):
     # Create the base schedule
     schedule = create_customer_monthly_schedule(customer)
     if not schedule["was_created"]:
-        print("Failed to create the schedule. Stop command here")
+        logger.error("Failed to create the schedule. Stop command here")
         return
     schedule = schedule['schedule']
 
@@ -26,7 +29,7 @@ def create_monthly_marketing_schedule(customer):
         if weeks['was_created']:
             break
         else:
-            print(f"There was an issue generating the topics on attempt {attempt + 1}. Trying again now.")
+            logger.error(f"There was an issue generating the topics on attempt {attempt + 1}. Trying again now.")
             schedule.delete()
             return False
 
@@ -37,7 +40,7 @@ def create_monthly_marketing_schedule(customer):
             break
         else:
             schedule.delete()
-            print(f"There was an issue generating the topics on attempt {attempt + 1}. Trying again now.")
+            logger.error(f"There was an issue generating the topics on attempt {attempt + 1}. Trying again now.")
             return False
 
     return schedule
@@ -49,7 +52,7 @@ def create_customer_monthly_schedule(customer):
     """
     try:
         # Initialize openai and setup an empty marketing schedule object
-        print('Setting up monthly schedule topic...')
+        logger.info('Setting up monthly schedule topic...')
         openai.api_key = os.environ.get("OPENAI_API_KEY")
         model = "gpt-4"
         token_limit = 150
@@ -140,11 +143,11 @@ def create_customer_monthly_schedule(customer):
                 new_marketing_schedule.save()
                 return {"was_created": True, "schedule": new_marketing_schedule}
             except Exception as error:
-                print(f'Error in create_customer_monthly_schedule: {error}')
+                logger.error(f'Error in create_customer_monthly_schedule: {error}')
                 return {"was_created": False, "message": error}
 
     except Exception as error:
-        print(f"Error in create_customer_monthly_schedule surface: {error}")
+        logger.error(f"Error in create_customer_monthly_schedule surface: {error}")
         return {"was_created": False, "message": error}
 
 def create_schedules_weekly_topics(schedule):
@@ -211,7 +214,7 @@ def create_schedules_weekly_topics(schedule):
         """).split())
 
         # Try the request 3 times
-        print('Creating new weekly topic...')
+        logger.info('Creating new weekly topic...')
         for _ in range(3):
             try:
                 response = openai.ChatCompletion.create(
@@ -243,7 +246,7 @@ def create_schedules_weekly_topics(schedule):
                 break
 
             except Exception as error:
-                print(error)
+                logger.error(error)
                 continue
 
     return {"was_created": True}
@@ -277,7 +280,7 @@ def create_schedules_daily_content(schedule):
             pacific = timezone('US/Pacific')
             current_time_pacific = datetime.now(pacific).date()
             if week.week_start_date + timedelta(days=day.index) < current_time_pacific:
-                print(f'Skipping day {day.index} because it is in the past')
+                logger.info(f'Skipping day {day.index} because it is in the past')
                 day_count += 1
                 continue
 
@@ -346,15 +349,15 @@ def create_schedules_daily_content(schedule):
                     )
                     new_daily_content.save()
                     day_count += 1
-                    print('Scheduled daily content...')
+                    logger.info('Scheduled daily content...')
                     break
                 except Exception as error:
-                    print(error)
+                    logger.error(error)
                     continue
     return {"was_created": True}
 
 def create_social_post(content, platforms):
-    print('creating social post...')
+    logger.info('creating social post...')
 
     # Initialize openai and setup an empty marketing schedule object
     daily_content = content
@@ -420,5 +423,5 @@ def create_social_post(content, platforms):
             new_social_post.save()
         return True
     except Exception as error:
-        print(error)
+        logger.error(error)
         return False

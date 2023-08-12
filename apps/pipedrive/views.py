@@ -3,6 +3,7 @@ import json
 import time
 import stripe
 import requests
+from roseware.utils import make_logger
 from rest_framework import status
 from rest_framework.views import APIView
 from knox.auth import TokenAuthentication
@@ -20,6 +21,7 @@ from .utils import (create_pipedrive_stripe_url_fields,
                     create_pipedrive_type_fields, create_pipedrive_webhooks,
                     set_pipedrive_keys)
 
+logger = make_logger(__name__)
 
 class PipedriveOauth(APIView):
     """
@@ -54,7 +56,7 @@ class PipedriveOauth(APIView):
 
             # Check if the response was successful and set the access and refresh tokens
             if 'success' in data and not data['success']:
-                print(f'Failed to get Oauth tokens from Pipedrive. {data}')
+                logger.error(f'Failed to get Oauth tokens from Pipedrive. {data}')
                 return Response({"ok": False, "message": "Error getting access token."}, status=status.HTTP_400_BAD_REQUEST)
             else:
                 access_token = data['access_token']
@@ -113,7 +115,7 @@ class PipedriveOauth(APIView):
 
             return Response({"ok": True, "message": "Access token stored successfully.", "customer": CustomerSerializer(customer).data}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f'Error getting Oauth tokens from Pipedrive: {e}')
+            logger.error(f'Error getting Oauth tokens from Pipedrive: {e}')
             return Response({"ok": False, "message": "Error getting access token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -186,7 +188,7 @@ class PackageCreateWebhook(APIView):
             service_package.save(should_sync_pipedrive=False, should_sync_stripe=True)
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"ok": False, "message": "Failed to process request."}
@@ -275,7 +277,7 @@ class PackageSyncWebhook(APIView):
             package_template.save(should_sync_pipedrive=False, should_sync_stripe=True)
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 class PackageDeleteWebhook(APIView):
@@ -299,7 +301,7 @@ class PackageDeleteWebhook(APIView):
             package.delete()
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 class CustomerCreateWebhook(APIView):
@@ -357,7 +359,7 @@ class CustomerCreateWebhook(APIView):
                 else:
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                print(e)
+                logger.error(e)
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
             # Get the representative TODO - do this better
@@ -384,7 +386,7 @@ class CustomerCreateWebhook(APIView):
             customer.save(should_sync_pipedrive=False, should_sync_stripe=True)
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 
@@ -437,7 +439,7 @@ class CustomerSyncWebhook(APIView):
                 if is_same:
                     return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
             except Exception as e:
-                print(e)
+                logger.error(e)
                 return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
             # Update customer data
@@ -449,7 +451,7 @@ class CustomerSyncWebhook(APIView):
 
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 class CustomerDeleteWebhook(APIView):
@@ -474,7 +476,7 @@ class CustomerDeleteWebhook(APIView):
             customer.delete()
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 class DealCreateWebhook(APIView):
@@ -509,18 +511,18 @@ class DealCreateWebhook(APIView):
 
             # Check if the webhook is being sent as a result of a sync
             ongoing_sync = OngoingSync.objects.filter(type='package_plan', action='create').first()
-            # print('\nChecking pipedrive webhook sync: ')
+            # logger.info('\nChecking pipedrive webhook sync: ')
             if ongoing_sync:
-                # print(f'\nSTOPPING PIPEDRIVE DEAL CREATE WEBHOOK: {ongoing_sync}')
+                # logger.info(f'\nSTOPPING PIPEDRIVE DEAL CREATE WEBHOOK: {ongoing_sync}')
                 ongoing_sync.has_recieved_pipedrive_webhook = True
                 ongoing_sync.save()
                 return Response(status=status.HTTP_200_OK, data={"ok": True, "message": "Synced successfully."})
 
             # Check if the package already exists
-            # print('Checking if package already exists in the database')
+            # logger.info('Checking if package already exists in the database')
             existing_package = PackagePlan.objects.filter(pipedrive_id=pipedrive_id).first()
             if existing_package:
-                print('Package already exists in the database: ', existing_package)
+                logger.warning('Package already exists in the database: ', existing_package)
                 return Response(status=status.HTTP_200_OK, data={"ok": True})
             
             # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
@@ -548,7 +550,7 @@ class DealCreateWebhook(APIView):
 
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 class DealSyncWebhook(APIView):
@@ -719,7 +721,7 @@ class DealSyncWebhook(APIView):
             # These values come from the selection cields created in Pipedrive when an account is created
             if payment_selection == str(subscription_selector):
                 if processing_selection == str(pipedrive_deal_process_now_selector):
-                    print('Creating a new subscription for the customer. Processing now...')
+                    logger.info('Creating a new subscription for the customer. Processing now...')
                     stripe_subscription = StripeSubscription.objects.filter(customer=package_plan.customer).first()
                     if stripe_subscription:
                         subscription_pk = stripe_subscription.pk
@@ -735,21 +737,21 @@ class DealSyncWebhook(APIView):
                         package_plan.save()
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
                 else:
-                    print('Creating a new subscription for the customer. Sending invoice now...')
+                    logger.info('Creating a new subscription for the customer. Sending invoice now...')
                     package_plan.status = 'lost'
                     package_plan.save()
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
 
             elif payment_selection == str(payout_selector):
                 if processing_selection == str(pipedrive_deal_process_now_selector):
-                    print('** Creating Stripe Payout. Processing now...')
+                    logger.info('** Creating Stripe Payout. Processing now...')
                     package_plan.status = 'lost'
                     package_plan.save()
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
                 else:
                     package_plan.status = 'lost'
                     package_plan.save()
-                    print('** Creating Stripe Payout. Sending invoice...')
+                    logger.info('** Creating Stripe Payout. Sending invoice...')
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
             else:
                 package_plan.status = 'lost'
@@ -757,7 +759,7 @@ class DealSyncWebhook(APIView):
                 return Response(status=status.HTTP_400_OK, data={"ok": False, "message": "Unknown deal type."})
 
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
 
 class DealDeleteWebhook(APIView):
@@ -782,5 +784,5 @@ class DealDeleteWebhook(APIView):
             service_package.delete()
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            print(e)
+            logger.error(e)
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"ok": False, "message": "Failed to process request."})
