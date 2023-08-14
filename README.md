@@ -1,49 +1,55 @@
 # **\*\*\*\***\*\*\***\*\*\*\***
-#  Intro
-Hey, welcome to the Roseware project! It is a pretty big project, so I will try to explain it as best I can. 
-If you dont care what I have to say and just want to start the project, go to the next section titled "Starting The Project". 
+
+# Intro
+
+Hey, welcome to the Roseware project! It is a pretty big project, so I will try to explain it as best I can.
+If you dont care what I have to say and just want to start the project, go to the next section titled "Starting The Project".
 If you have any questions, feel free to ask me. I will try to keep this readme up to date as best I can. If you get setup or get stuck there is more usage doccumentation at https://www.rosewareintegrations.com/.
 Also, I'm sure there are revisions to be made in the docs, so if you see anything that needs to be changed, feel free to let me know.
 
-There are 3 environments right now. Dev, staging and production. The staging and production branches are setup to require a pr in gitub before merging. I did this because those branches are already being used 
+There are 3 environments right now. Dev, staging and production. The staging and production branches are setup to require a pr in gitub before merging. I did this because those branches are already being used
 for live environments, the dev branch is not. So if you are working on a feature, here is the workflow I would suggest:
 
-  - Create a new branch off of dev
-  - Do your work
-  - Push your branch to github
-  - Create a pr to merge your branch into dev
-  - then once dev is in a stable state we can make a pr into staging
+- Create a new branch off of dev
+- Do your work
+- Push your branch to github
+- Create a pr to merge your branch into dev
+- then once dev is in a stable state we can make a pr into staging
 
 Staging is live on a seperate domain with sandbox accounts. Here are the domains for each environment:
 
 Backend:
-  - Dev: http://localhost:8000/admin/
-  - Staging: https://www.api-staging.rosewareintegrations.com/admin/
-  - Production: https://www.api.rosewareintegrations.com/admin/
+
+- Dev: http://localhost:8000/admin/
+- Staging: https://www.api-staging.rosewareintegrations.com/admin/
+- Production: https://www.api.rosewareintegrations.com/admin/
 
 Frontend:
-  - Dev: http://127.0.0.1:5173/
-  - Staging: https://staging-frontend-58c60f45e55f.herokuapp.com/  --  I am waiting to change the dns settings --  https://staging.rosewareintegrations.com/
-  - Production: https://production-frontend-b54c58c8732a.herokuapp.com/  --  I am waiting to change the dns settings --  https://www.rosewareintegrations.com/
 
-Oce you get everything up and running here is the experience I'm going for. You open the website, explore it, and then create an account. Easy. When you finish making you account you 
+- Dev: http://127.0.0.1:5173/
+- Staging: https://staging-frontend-58c60f45e55f.herokuapp.com/ -- I am waiting to change the dns settings -- https://staging.rosewareintegrations.com/
+- Production: https://production-frontend-b54c58c8732a.herokuapp.com/ -- I am waiting to change the dns settings -- https://www.rosewareintegrations.com/
+
+Oce you get everything up and running here is the experience I'm going for. You open the website, explore it, and then create an account. Easy. When you finish making you account you
 are dropped onto your dashboard. (pause: as far as frontend ui, this is as far as I have gotten. The backend functionality is mostly in place, and the fronend authentication system works.
-But there are still a few big bugs and potential imporvements to be made. un-pause): On the dashboard there are 3 selections. Webpages, Integrations and Marketing. 
+But there are still a few big bugs and potential imporvements to be made. un-pause): On the dashboard there are 3 selections. Webpages, Integrations and Marketing.
 
-Webpages: This is where they request that we make them a website, or register their website into our services. I'm not really sure how this part will look yet. 
+Webpages: This is where they request that we make them a website, or register their website into our services. I'm not really sure how this part will look yet.
 
 Marketing: This will basically just be two Ayrshare buttons that connect to the users social media. The marketing system is mostly working already.
-  If you look at `apps/marketing_manager/models` you will see the models for the marketing system. It all runs on celery task running a cron schedule with celery beat. (There is a celery section)
-  It can generate social media posts and blogs generated with OpenAI and keeps to a planned montly schedule with generated topics ahgead of time. It still needs to make use of midjourny.
-  
-Integrations: This is where the user will connect their accounts to our system. I am working on transitioning the api away from api keys and environment variables in favor of oauth. 
-  This way we can store our users access and refresh tokens (probably in aws secrets manager) and use them to make api calls. This allows us to make api calls on behalf of our users.
-  * All integrations are trigged on an objects save method. Look at `apps/acounts/models.py` and checkout the class Customer. Notice the save method just calles a celery task.
+If you look at `apps/marketing_manager/models` you will see the models for the marketing system. It all runs on celery task running a cron schedule with celery beat. (There is a celery section)
+It can generate social media posts and blogs generated with OpenAI and keeps to a planned montly schedule with generated topics ahgead of time. It still needs to make use of midjourny.
+
+Integrations: This is where the user will connect their accounts to our system. I am working on transitioning the api away from api keys and environment variables in favor of oauth.
+This way we can store our users access and refresh tokens (probably in aws secrets manager) and use them to make api calls. This allows us to make api calls on behalf of our users.
+
+- All integrations are trigged on an objects save method. Look at `apps/acounts/models.py` and checkout the class Customer. Notice the save method just calles a celery task.
   The triggers a long loop of tasks and webhooks that keep the users data synced with the third party api. This is where it kind of gets confusing...
 
 ... To be continued.
 
 # **\*\*\*\***\*\*\***\*\*\*\***
+
 # Starting The Project
 
 - First you need to open the projects vertual environment and install the dependencies
@@ -52,8 +58,8 @@ Integrations: This is where the user will connect their accounts to our system. 
   2: Run the command `pipenv shell && pipenv install`
   3: Before starting the server you should follow the rest of the steps...
 
-
 # **\*\*\*\***\*\*\***\*\*\*\***
+
 # Set environment variables
 
 - There are some environment variables you need to set up
@@ -61,8 +67,9 @@ Integrations: This is where the user will connect their accounts to our system. 
   1: Create a new file called .env and put it in the roseware root directory
   2: At the bottom of the read me you will find the environment variables
   3: Just copy and past them in your .env and fill in all the fields as you go
-    - For the api keys, you can either setup your own accounts and use those, 
-      or hit up greyland and he can give you the keys for the test accounts.
+
+  - For the api keys, you can either setup your own accounts and use those,
+    or hit up greyland and he can give you the keys for the test accounts.
 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
@@ -79,8 +86,8 @@ Integrations: This is where the user will connect their accounts to our system. 
   - DB_USER=
   - DB_PASSWORD=
 
-
 # **\*\*\*\***\*\*\***\*\*\*\***
+
 # Create a super user
 
 - Next you need to create a admin user for yourself
@@ -90,8 +97,8 @@ Integrations: This is where the user will connect their accounts to our system. 
   2: Follow the text propts in the terminal.
   3: Use something you will remember easily.
 
-
 # **\*\*\*\***\*\*\***\*\*\*\***
+
 # Start the server
 
 - Start the app
@@ -102,11 +109,11 @@ Integrations: This is where the user will connect their accounts to our system. 
 
 - Next you just need to set up the front end.
 
-
 # **\*\*\*\***\*\*\***\*\*\*\***
+
 # CELERY SETUP
 
-* Side note: You dont really need to start celery to use the app. Regular authentication
+- Side note: You dont really need to start celery to use the app. Regular authentication
   and general CRUD opreations will work fine. But if you want to test or work on any of the
   syncing features you will need to start celery. Same goes for the webhooks and scheduled tasks.
 
@@ -123,7 +130,7 @@ Integrations: This is where the user will connect their accounts to our system. 
 - Open up a terminal on the side somethere, you'll need at least 3.
 - In the first terminal, start your rabbitmq server => `sudo rabbitmq-server`
 - Open another new server and navigate to the root of this app,
-- From there run => `pipenv shell` then, `celery -A roseware worker -f roseware.log -l info` or `celery -A roseware worker -l INFO`. Use the second for development.
+- From there run => `pipenv shell` then, `celery -A roseware worker`.
 - Repeat the previous step but run this command => `pipenv shell` then, `celery -A roseware worker -B`. You only need to run this if you are testing the scheduled tasks.
   And now your done, and ready to starty using Celery!
 
@@ -136,8 +143,8 @@ Integrations: This is where the user will connect their accounts to our system. 
 - Once that is set, you can run the commands `python manage.py create_pipedrive_webhooks` and `python manage.py create_stripe_webhooks`.
 - After that all the platforms should be synced and ready to go.
 
-
 # **\*\*\*\***\*\*\***\*\*\*\***
+
 # NOTES
 
 - You will need to add the Toggles to the admin panel to be able to use the app.
@@ -149,6 +156,7 @@ Integrations: This is where the user will connect their accounts to our system. 
 - Copy and paste the rest of the file into your .env and fill out the empty variables.
 
 # Database
+
 DB_NAME=you-db-name
 DB_USER=your-db-user
 DB_PASSWORD=your-db-password
@@ -163,13 +171,16 @@ WEBHOOK_SECRET_TOKEN=ask-greyland
 DJANGO_ENV=development
 
 # OpenAI
+
 OPENAI_API_KEY=
 
 # Celery
+
 RABBITMQ_USERNAME=your-celery-username
 RABBITMQ_PASSWORD=your-celery-password
 
-# PIPEDRIVE 
+# PIPEDRIVE
+
 PIPEDRIVE_USER_ID=
 PIPEDRIVE_API_KEY=
 PIPEDRIVE_DOMAIN=
@@ -183,19 +194,65 @@ PIPEDRIVE_CLIENT_ID=
 PIPEDRIVE_CLIENT_SECRET=
 
 # Stripe
-STRIPE_PRIVATE= 
+
+STRIPE_PRIVATE=
 
 # Ayrshare - PERSONAL ACCOUNT
+
 AYRSHARE_API_KEY=
 
 # AWS
+
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_S3_BUCKET_NAME=
 
 # Monday - You can ignore this for now
+
 MONDAY_API_URL=
 MONDAY_API_KEY=
 MONDAY_LEADS_BOARD_ID=
 MONDAY_ClientS_BOARD_ID=
 MONDAY_PACKAGES_BOARD_ID=
+
+# **\*\*\*\***\*\*\***\*\*\*\***
+
+# Logging
+
+The logging system in this application is designed to offer flexibility and detailed tracking of events both during development and in production. It supports logging to both the console and files, allowing for easier debugging and monitoring.
+
+_Initialization_
+
+You can create a logger by importing from `roseware.utils` and then calling the `make_logger()` function. This function accepts several parameters:
+
+    name: A string representing the name of the logger instance. You can for the most part use `__name__` for this to name it after the module it's called in.
+    stream: A boolean value to determine whether to log to the console or not. Set to True to enable console logging (default is false).
+    file_name: The path to the log file for general logs (default is "logs/general.log").
+    log_level: The logging level to set (default is logging.DEBUG).
+    set_propagate: A boolean to determine whether to propagate the log to higher-level loggers (default is True).
+
+Example:
+
+`logger = make_logger(__name__, stream=True)`
+
+This will create a logger that logs to both the console and the specified files.
+
+_Logging Messages_
+
+You can log messages using the standard logging methods, such as logger.info, logger.debug, etc.
+
+`logger.debug("This is an debug message")`
+`logger.info("This is an info message")`
+`logger.warning("This is an warning message")`
+`logger.error("This is an error message")`
+`logger.critical("This is an critical message")`
+
+_Log Files_
+
+Three log files are created in the logs directory:
+
+    logs/general.log: This file contains general logs depending on the log level set.
+    logs/errors.log: This file specifically logs error-level messages.
+    logs/debug.log: This file is used by Django for debug-level logging.
+
+# **\*\*\*\***\*\*\***\*\*\*\***

@@ -1,6 +1,9 @@
 import requests
 import json
 import os
+from roseware.utils import make_logger
+
+logger = make_logger(__name__, stream=True)
 
 # LEADS BOARD COLUMNS
 def get_leads_board_columns(customer, columns):
@@ -9,7 +12,7 @@ def get_leads_board_columns(customer, columns):
     If I you want to sync more fields from the monday.com ledas board, add them here
     """
 
-    print('Getting leads board columns...')
+    logger.info('Getting leads board columns...')
     evaluated_column_values = {}
     for data in columns:
         data_id = data['id']
@@ -24,7 +27,7 @@ def get_leads_board_columns(customer, columns):
 
 # CUSTOMERS BOARD COLUMNS
 def get_customers_board_columns(customer, columns):
-    print('Getting customers board columns...')
+    logger.info('Getting customers board columns...')
     evaluated_column_values = {}
     for data in columns:
         data_id = data['id']
@@ -56,7 +59,7 @@ def update_monday_entry(customer, board_id, url, headers, item_id, new_column_va
     data = response.json()
     
     if response['data']['errors']:
-        print('errors: ', response['data']['errors'])
+        logger.error('errors: ', response['data']['errors'])
         return False
     return True
 
@@ -80,5 +83,5 @@ def create_monday_entry(customer, board_id, url, headers, new_column_values):
     monday_id = data["data"]["create_item"]["id"]
     customer.monday_id = monday_id
     customer.save(sync_monday=False)
-    print(f'monday_id: {monday_id} - Save this to the customer model')
+    logger.info(f'monday_id: {monday_id} - Save this to the customer model')
     return monday_id
