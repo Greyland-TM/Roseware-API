@@ -198,8 +198,13 @@ LOGGING = {
             "handlers": ["console"],
         },
         "django": {
-            "handlers": ["console"],
+            "handlers": ["file"],
             "level": "DEBUG",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
             "propagate": False,
         },
     },
@@ -208,6 +213,8 @@ LOGGING = {
 if not os.path.exists("logs"):
     # Remove the 'file' handler from the LOGGING dictionary
     LOGGING["handlers"].pop("file", None)
+    LOGGING["loggers"].pop("django", None)
+
 else:
     # Only if logs directory exists, add the 'file' handler to LOGGING
     LOGGING["handlers"]["file"] = {
