@@ -202,6 +202,11 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 
