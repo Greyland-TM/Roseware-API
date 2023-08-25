@@ -18,7 +18,6 @@ python-dotenv = "*"
 openai = "*"
 requests = "*"
 django-celery-results = "*"
-django-phonenumber-field = {extras = ["phonenumberslite"], version = "*"}
 python-dateutil = "*"
 monday = "*"
 stripe = "*"
@@ -40,3 +39,7 @@ black = "*"
 
 [requires]
 python_version = "*"
+
+[packages.django-phonenumber-field]
+extras = [ "phonenumberslite",]
+version = "*"

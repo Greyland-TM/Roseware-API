@@ -2,7 +2,7 @@
 # from rest_framework.decorators import authentication_classes, permission_classes
 # import authentication_classes
 import secrets
-
+import time
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
 from knox.views import LogoutView as KnoxLogoutView
@@ -14,7 +14,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.pipedrive.tasks import sync_pipedrive
-
 from .models import Customer, Employee, Organization
 from .serializers import (CustomerSerializer, LoginSerializer,
                           OrganizationSerializer, RegisterSerializer)
@@ -43,7 +42,9 @@ class LoginAPIView(generics.GenericAPIView):
             )
         except Exception as error:
             logger.error(f"Error logging in: {error}")
-            return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            error_dict = {'non_field_errors': ['Incorrect Credentials']}
+            error_message = error_dict['non_field_errors'][0]
+            return Response({"ok": False, "error": error_message}, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(KnoxLogoutView):
     """ I was having trouble with the knox logout view so I made my own """
@@ -70,6 +71,7 @@ class CreateCustomerAPIView(APIView):
     def post(self, request):
         """Create a new customer"""
         try:
+            time.sleep(0.5)  # This is just for user experience. The front end loading spinner clickers too fast if this isn't here.
             # Make sure the request has a first_name, last_name, email and phone
             required_fields = ["first_name", "last_name", "email", "phone"]
             missing_fields = [field for field in required_fields if field not in request.data]
@@ -87,6 +89,7 @@ class CreateCustomerAPIView(APIView):
             existing_customer = Customer.objects.filter(email=data.get("email")).first()
             if existing_customer:
                 if existing_customer.status == 'customer':
+                    print("check 1")
                     return Response({"ok": False, "error": "A customer with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
                 
                 # If it's a lead, update their info
@@ -139,9 +142,9 @@ class CreateCustomerAPIView(APIView):
             else:
                 owner = representative.user
                 
-            status = request.data.get("status")
-            if not status:
-                status = 'lead'
+            customer_status = request.data.get("status")
+            if not customer_status:
+                customer_status = 'lead'
 
             # Create the customer
             customer = Customer(
@@ -149,13 +152,12 @@ class CreateCustomerAPIView(APIView):
                 owner=owner,
                 rep=representative,
                 phone=request.data["phone"],
-                status=status,
+                status=customer_status,
             )
             customer.save()
             
             if customer.status == "lead":
                 sync_pipedrive.delay(customer.pk, "create", "lead")
-            ## TODO - Else create a customer
                 
             login_seralizer = LoginSerializer(data={"username": user.username, "password": password})
             login_seralizer.is_valid(raise_exception=True)
@@ -169,8 +171,21 @@ class CreateCustomerAPIView(APIView):
             )
 
         except Exception as error:
+            email_error_message = ""
+            errors = {
+                'username': ['ErrorDetail(string=\'A user with that username already exists.\', code=\'unique\')'],
+                'email': ['ErrorDetail(string=\'user with this email address already exists.\', code=\'unique\')']
+            }
+            email_error = errors.get('email', [])[0] if 'email' in errors else None
+
+            # Extract the actual message from the ErrorDetail string representation
+            if email_error:
+                start = email_error.find('string=\'') + len('string=\'')
+                end = email_error.find('\',', start)
+                email_error_message = email_error[start:end]
+                
             logger.error(f"*** Error 2: {error}")
-            return Response({"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"ok": False, "error": email_error_message}, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomerAPIView(APIView):
     """API view for customers"""

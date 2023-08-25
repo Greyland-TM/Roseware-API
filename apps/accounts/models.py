@@ -10,10 +10,10 @@ class Employee(models.Model):
     first_name = CharField(default="Joe", max_length=100)
     last_name = CharField(default="Dierte", max_length=100)
     role = CharField(default="sales", max_length=100)
-    bio = CharField(default="", max_length=1000)
-    linkedin = CharField(default="", max_length=100)
-    github = CharField(default="", max_length=100)
-    display_on_website = models.BooleanField(default=False)
+    bio = CharField(default="", max_length=1000, null=True, blank=True)
+    linkedin = CharField(default="", max_length=100, null=True, blank=True)
+    github = CharField(default="", max_length=100, null=True, blank=True)
+    display_on_website = models.BooleanField(default=False, null=True, blank=True)
 
     def __str__(self):
         return self.first_name
