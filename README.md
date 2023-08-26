@@ -27,8 +27,8 @@ Backend:
 Frontend:
 
 - Dev: http://127.0.0.1:5173/
-- Staging: https://staging-frontend-58c60f45e55f.herokuapp.com/ -- I am waiting to change the dns settings -- https://staging.rosewareintegrations.com/
-- Production: https://production-frontend-b54c58c8732a.herokuapp.com/ -- I am waiting to change the dns settings -- https://www.rosewareintegrations.com/
+- Staging: https://staging.rosewareintegrations.com/
+- Production: https://www.rosewareintegrations.com/
 
 Oce you get everything up and running here is the experience I'm going for. You open the website, explore it, and then create an account. Easy. When you finish making you account you
 are dropped onto your dashboard. (pause: as far as frontend ui, this is as far as I have gotten. The backend functionality is mostly in place, and the fronend authentication system works.
