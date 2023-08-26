@@ -8,6 +8,7 @@ urlpatterns = [
     path("api/auth/", include("knox.urls")),
     path("accounts/", include("apps.accounts.urls")),
     path("package-manager/", include("apps.package_manager.urls")),
+    path("marketing-manager/", include("apps.marketing_manager.urls")),
     path("pipedrive/", include("apps.pipedrive.urls")),
     path("stripe/", include("apps.stripe.urls")),
 ]
