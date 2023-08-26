@@ -14,7 +14,13 @@ class EmployeeSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "first_name",
-            "last_name"
+            "last_name",
+            "profile_picture",
+            "bio",
+            "role",
+            "linkedin",
+            "github",
+            
         )
 
 class CustomerSerializer(serializers.ModelSerializer):

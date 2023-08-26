@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.db import models
 import datetime
 
@@ -81,3 +82,19 @@ class SocialPost(models.Model):
 
     def __str__(self):
         return f"{self.platform}"
+
+class BlogArticle(models.Model):
+    CATEGORY_CHOICES = (
+        ('news', 'News'),
+        ('updates', 'Updates'),
+        ('events', 'Events'),
+        ('marketing', 'Marketing'),
+    )
+
+    title = models.CharField(default="", max_length=100, null=False, blank=False)
+    description = models.CharField(default="", max_length=100, null=False, blank=False)
+    created_at = models.DateTimeField(auto_now_add=True, null=False, blank=False)
+    image = models.ImageField(upload_to='blog_images/', null=False, blank=False)
+    category = models.CharField(default="", max_length=100, null=False, blank=False, choices=CATEGORY_CHOICES)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="author", null=True, blank=True)
+    body = models.TextField(default="", null=False, blank=False)

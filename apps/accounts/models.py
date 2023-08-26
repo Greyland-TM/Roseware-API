@@ -10,6 +10,7 @@ class Employee(models.Model):
     first_name = CharField(default="Joe", max_length=100)
     last_name = CharField(default="Dierte", max_length=100)
     role = CharField(default="sales", max_length=100)
+    profile_picture = models.ImageField(upload_to='profile_picture/', null=True, blank=True)
     bio = CharField(default="", max_length=1000, null=True, blank=True)
     linkedin = CharField(default="", max_length=100, null=True, blank=True)
     github = CharField(default="", max_length=100, null=True, blank=True)
