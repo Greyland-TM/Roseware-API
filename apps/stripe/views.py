@@ -44,6 +44,10 @@ class GetStripeAccountLink(APIView):
                 return_url=f"{frontend_url}/dashboard/integrations/",
                 type="account_onboarding",
             )
+            # TODO - has_synced_stripe should update on a webhook after the accound is connected,
+            # in order to avoid false positive connections
+            customer.has_synced_stripe = True
+            customer.save(should_sync_pipedrive=False, should_sync_stripe=False)
             return Response(
                 {"ok": True, "message": "Successfully created account link.", "url": response["url"]}
             )
