@@ -24,13 +24,32 @@ logger = make_logger(__name__, stream=True)
 stripe.api_key = os.environ.get("STRIPE_PRIVATE")
 
 
-class PaymentDetailsView(APIView):
-    def post(self, request):
-        logger.info("setting up payment details")
-        return Response(
-            status=status.HTTP_200_OK,
-            data={"ok": True, "message": "Payment details set up successfully."},
-        )
+class GetStripeAccountLink(APIView):
+    """ API view for getting the stripe account link """
+
+    # permission_classes = [IsAuthenticated]
+    # authentication_classes = [WebhookAuthentication] 
+
+    def get(self, request):
+        try:
+            if "pk" not in request.GET:
+                return Response({"ok": False, "message": "No customer pk provided."})
+            
+            customer = Customer.objects.get(pk=request.GET["pk"])
+            frontend_url = os.environ.get("FRONTEND_URL")
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            response = stripe.AccountLink.create(
+                account=customer.stripe_account_id,
+                refresh_url=f"{frontend_url}/dashboard/integrations/",
+                return_url=f"{frontend_url}/dashboard/integrations/",
+                type="account_onboarding",
+            )
+            return Response(
+                {"ok": True, "message": "Successfully created account link.", "url": response["url"]}
+            )
+
+        except Exception as e:
+            print(e)
 
 
 class ProductCreateWebhook(APIView):

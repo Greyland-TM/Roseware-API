@@ -146,7 +146,6 @@ class PipedriveOauth(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
-            print("Fucked it up... ", e)
             logger.error(f"Error getting Oauth tokens from Pipedrive: {e}")
             return Response(
                 {"ok": False, "message": "Error getting access token."},

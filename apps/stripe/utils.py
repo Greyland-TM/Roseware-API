@@ -19,6 +19,24 @@ logger = make_logger(__name__, stream=True)
 """ CREATE STRIPE DETAILS """
 
 
+def create_stripe_account(customer):
+    # Create a Stripe Customer
+    stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+    try:
+        response = stripe.Account.create(
+            type="standard",
+            country="US",
+            email=customer.email
+        )
+        stripe_account_id = response["id"]
+        customer.stripe_account_id = stripe_account_id
+        customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
+        return True
+    except Exception as error:
+        logger.error(f"\nError: {error}")
+        return False
+
+
 def setup_payment_details(customer, payment_details, package_plan):
     # Create a Stripe Payment Method
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")

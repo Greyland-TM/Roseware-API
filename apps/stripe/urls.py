@@ -1,13 +1,13 @@
 from django.urls import include, path
 
 from .views import (CustomerCreateWebhook, CustomerDeleteWebhook,
-                    CustomerSyncWebhook, PaymentDetailsView,
+                    CustomerSyncWebhook, GetStripeAccountLink,
                     ProductCreateWebhook, ProductDeleteWebhook,
                     ProductSyncWebhook, SubscriptionCreateWebhook,
                     SubscriptionDeleteWebhook, SubscriptionSyncWebhook)
 
 urlpatterns = [
-    path("payment-details/", PaymentDetailsView.as_view(), name="payment-details"),
+    path("link/", GetStripeAccountLink.as_view(), name="stripe-link"),
     path("customer-create-webhook/", CustomerCreateWebhook.as_view()),
     path("customer-sync-webhook/", CustomerSyncWebhook.as_view()),
     path("customer-delete-webhook/", CustomerDeleteWebhook.as_view()),

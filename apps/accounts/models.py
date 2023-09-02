@@ -41,6 +41,7 @@ class Customer(models.Model):
     pipedrive_user_id = CharField(default="", max_length=100, null=True, blank=True)
     piprdrive_api_url = CharField(max_length=100, null=True, blank=True, default="")
     stripe_customer_id = CharField(default="", max_length=100, null=True, blank=True)
+    stripe_account_id = CharField(default="", max_length=100, null=True, blank=True)
     original_sync_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     last_synced_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     has_synced_pipedrive = models.BooleanField(default=False)

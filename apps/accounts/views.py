@@ -11,7 +11,7 @@ from rest_framework.authentication import BasicAuthentication, SessionAuthentica
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from apps.stripe.utils import create_stripe_account
 from apps.pipedrive.tasks import sync_pipedrive
 from .models import Customer, Employee, Organization
 from .serializers import (
@@ -182,6 +182,7 @@ class CreateCustomerAPIView(APIView):
                 status=customer_status,
             )
             customer.save()
+            create_stripe_account(customer.pk)
 
             if customer.status == "lead":
                 sync_pipedrive.delay(customer.pk, "create", "lead")
