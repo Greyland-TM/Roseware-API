@@ -48,7 +48,9 @@ def set_pipedrive_keys(customer_pk, access_token, refresh_token):
     oauth_tokens = secret_dict["roseware-secrets"][env]["oauth-tokens"]
     customer_key = str(customer_pk)
     if customer_key in oauth_tokens:
-        logger.warning(f"Credentials for customer {customer_key} already exist. Overwriting.")
+        logger.warning(
+            f"Credentials for customer {customer_key} already exist. Overwriting."
+        )
 
     oauth_tokens[customer_key] = {
         "access_token": access_token,
@@ -116,6 +118,7 @@ def create_pipedrive_stripe_url_fields(customer_pk):
         customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY = person_key
         customer.PIPEDRIVE_DEAL_STRIPE_URL_KEY = deal_key
         customer.PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = product_key
+        print(f'\n\nCustomer: {customer.__dict__}\n\n')
         customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
         logger.info("Created stripe url fields in pipedrive successfully!")
 
@@ -131,6 +134,7 @@ def create_pipedrive_type_fields(customer_pk):
         # pipedrive_api_key = os.environ.get('PIPEDRIVE_API_KEY')
         pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
         customer = Customer.objects.get(pk=customer_pk)
+        print("Customer before update:", customer.__dict__)
 
         # Setup the pipedrive_field_data array that will be used for making the new fields
         choices = ["Subscription", "One Time"]
@@ -175,6 +179,7 @@ def create_pipedrive_type_fields(customer_pk):
         for field in pipedrive_field_data:
             response = requests.post(url, json=field, headers=headers)
             data = response.json()
+            # print(f'\n\nResponse data: {data}')
             if not data["success"] or data["success"] == False:
                 return False
             field_id = data["data"]["id"]
@@ -196,6 +201,7 @@ def create_pipedrive_type_fields(customer_pk):
                 requests.put(update_url, json=update_data)
 
             # Save the customer
+            # print(f'\n\nField name: {field_name}, payment_label: {payment_label}')
             options = data["data"]["options"]
             if field_name == payment_label:
                 customer.PIPEDRIVE_DEAL_TYPE_FIELD = str(field_id)
@@ -222,12 +228,16 @@ def create_pipedrive_type_fields(customer_pk):
                     customer.PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR = str(
                         process_immediately_option_id
                     )
+                else:
+                    print('\nNot saved to customer...\n')
 
+        print("Customer after update:", customer.__dict__)
         customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
         logger.info("Saved the option ids to the customer successfully!")
         return True
 
     except Exception as error:
+        print(f'\nFucked up: {error}')
         logger.error(f"Failed to create custom fields: {error}")
         return False
 
@@ -300,6 +310,8 @@ def create_pipedrive_webhooks(access_token=None, customer=None):
                 url = f"{backend_url}/{url_path}?pk={customer.pk}"
             else:
                 url = f"{backend_url}/{url_path}"
+
+            print("Setting url: ", url)
 
             # Construct the webhook data
             data = {
