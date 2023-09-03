@@ -32,10 +32,11 @@ class StripeSubscriptionCheckoutSession(APIView):
             customer = Customer.objects.get(pk=request.GET["customer_pk"])
             print('customer: ', customer)
 
-            if "redirect_uri" not in request.GET:
+            if "redirect_url" not in request.GET:
                 return Response({"ok": False, "message": "No redirect uri provided."}, status=status.HTTP_400_BAD_REQUEST)
 
-            redirect_url = request.GET['redirect_uri']
+            redirect_url = request.GET['redirect_url']
+            print('redirect_url: ', redirect_url)
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
             checkout_session = stripe.checkout.Session.create(
@@ -52,7 +53,7 @@ class StripeSubscriptionCheckoutSession(APIView):
                 {"ok": True, "message": "Successfully created checkout session.", "url": url}
             )
         except Exception as e:
-            print(e)
+            print('Failed to get subscription link: ', e)
             return Response({"ok": False, "message": "An error occurred."})
 
 class StripePaymentPageLink(APIView):
@@ -98,6 +99,7 @@ class GetStripeAccountLink(APIView):
                 return_url=f"{frontend_url}/dashboard/integrations?connected=true",
                 type="account_onboarding",
             )
+            print('response: ', response)
             # TODO - has_synced_stripe should update on a webhook after the accound is connected,
             # in order to avoid false positive connections
             customer.has_synced_stripe = True
@@ -107,7 +109,7 @@ class GetStripeAccountLink(APIView):
             )
 
         except Exception as e:
-            print(e)
+            print('\nFailed to get account link: ', e)
             return Response({"ok": False, "message": "An error occurred."})
 
         
@@ -396,6 +398,7 @@ class CustomerCreateWebhook(APIView):
         customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
         logger.info(f"customer: {customer}")
         if customer:
+            customer.save(should_sync_pipedrive=True, should_sync_stripe=False)
             return Response(
                 status=status.HTTP_200_OK,
                 data={"ok": True, "message": "Customer Already Exists...."},

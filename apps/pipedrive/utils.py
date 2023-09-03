@@ -451,6 +451,7 @@ def create_pipedrive_customer(customer):
 
 
 def update_pipedrive_customer(customer):
+    print('\n\nUPDATING PIPEDRIVE CUSTOMER\n\n')
     try:
         # Create the customer in Pipedrive
         # If the owner of the customer is a staff member, use the API key
@@ -482,6 +483,7 @@ def update_pipedrive_customer(customer):
             stripe_url = f"https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}"
 
         # Make the request to create the customer in Pipedrive
+        print('pipedrive_person_stripe_url_key: ', pipedrive_person_stripe_url_key, ' stripe_url: ', stripe_url)
         body = {
             "name": f"{customer.first_name} {customer.last_name}",
             "email": f"{customer.email}",

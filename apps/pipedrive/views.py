@@ -4,6 +4,7 @@ import time
 import stripe
 import requests
 from roseware.utils import make_logger
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.views import APIView
 from knox.auth import TokenAuthentication
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 from apps.stripe.models import StripeSubscription
 from apps.stripe.utils import setup_payment_details
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
 from apps.accounts.custom_auth import WebhookAuthentication
 from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.accounts.serializers import CustomerSerializer, RegisterSerializer
@@ -20,6 +22,7 @@ from apps.package_manager.models import (
     ServicePackage,
     ServicePackageTemplate,
 )
+from django.core.cache import cache
 from .utils import (
     create_pipedrive_stripe_url_fields,
     create_pipedrive_type_fields,
@@ -398,7 +401,13 @@ class CustomerCreateWebhook(APIView):
     authentication_classes = [WebhookAuthentication]
 
     def post(self, request):
+        # with cache.lock('CustomerCreateWebhookLock'):
         try:
+            # temporary fix tp prevent webhook cashig errror
+            if "pk" in request.GET:
+                return Response({"ok": True}, status=status.HTTP_200_OK)
+            
+            print('\n\n In the webook!')
             # Simetimes the webhooks come in too fast,
             # so we need to wait a second to make sure the OnGoingSync object is created
             time.sleep(1)
@@ -412,9 +421,17 @@ class CustomerCreateWebhook(APIView):
                 )
 
             # Get the pipedrive id
-            data = json.loads(request.body.decode("utf-8"))
-            meta_data = data["meta"]
-            pipedrive_id = meta_data["id"]
+            data = request.data['current']
+            # if data['current'] is None:
+            #     return Response(
+            #         status=status.HTTP_200_OK,
+            #         data={"ok": True},
+            #     )
+            print('\n\nget the pipedrive id: ', data)
+            # print('\nmeta data: ', data['meta'])
+            # meta_data = data["meta"]
+            print('id: ', data['id'])
+            pipedrive_id = data["id"]
 
             # Check if the webhook is being sent as a result of a sync
             ongoing_sync = OngoingSync.objects.filter(
@@ -438,54 +455,68 @@ class CustomerCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
+            # print('\n\nChecking data: ', data)
             # Extract user data from webhook payload
-            email = data["current"]["email"][0]["value"]
-            first_name = data["current"]["first_name"]
-            last_name = data["current"]["last_name"]
+            email = data["email"][0]["value"]
+            first_name = data["first_name"]
+            last_name = data["last_name"]
             phone = (
-                data["current"]["phone"][0]["value"]
-                if data["current"]["phone"]
+                data["phone"][0]["value"]
+                if data["phone"]
                 else None
             )
             password = "markittemppass2023"  # TODO - Set a default password or generate a random one
 
             # Create user object using the serializer
+            # try:
+            serializer_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": email,
+                "email": email,
+                "password": password,
+            }
+            # Check if a user with the provided email already exists
+            if User.objects.filter(Q(email=email) | Q(username=email)).exists():
+                print('\n\nUser already exists')
+                return Response(
+                    {"error": "A user with this email or username already exists."},
+                    status=status.HTTP_200_OK,
+                )
+
+            print('\n\ncreating user...')
             try:
-                serializer_data = {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "username": email,
-                    "email": email,
-                    "password": password,
-                }
                 serializer = RegisterSerializer(data=serializer_data)
                 serializer.is_valid(raise_exception=True)
-                if serializer.is_valid():
-                    user = serializer.save()
-                else:
-                    return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
-                    )
+                user = serializer.save()
             except Exception as e:
-                logger.error(e)
+                print('\n\nPipedrive customer creatwe webook failed with error: ', e)
                 return Response(
                     status=status.HTTP_400_BAD_REQUEST,
                     data={"ok": False, "message": "Failed to process request."},
                 )
+            print('\n\nUser created: ', user)
 
             # Get the representative TODO - do this better
-            representative = Employee.objects.all().first()
+            
+
+            print('\nGot a rep...')
 
             # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
             # The reason for this is so that later we can check if the customer is owned by the rep or the customer, and make the correct api requests.
             # If an employee is the owner then api keys will be used, if it is a customer then oauth will be used.
-            customer_pk = request.GET.get("pk")
-            if customer_pk is not None:
+            if "pk" in request.GET:
+                print('Getting customer pk')
+                customer_pk = request.GET.get("pk")
+                print('customer_pk: ', customer_pk)
                 customer = Customer.objects.get(pk=customer_pk)
                 owner = customer.user
             else:
+                print('\nGetting employee...\n')
+                representative = Employee.objects.all().first()
                 owner = representative.user
 
+            print('\nChecking pipedrive_id: ', pipedrive_id)
             # Create customer object
             customer = Customer(
                 user=user,
@@ -494,10 +525,12 @@ class CustomerCreateWebhook(APIView):
                 rep=representative,
                 phone=phone,
             )
+            print('\nCustomer created: ', customer)
             customer.save(should_sync_pipedrive=False, should_sync_stripe=True)
+            print('\nCustomer saved: ')
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            logger.error(e)
+            print('\n\nPipedrive customer creatwe webook failed with secondary error: ', e)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"ok": False, "message": "Failed to process request."},
@@ -514,10 +547,11 @@ class CustomerSyncWebhook(APIView):
     authentication_classes = [WebhookAuthentication]
 
     def post(self, request):
+        # with cache.lock('CustomerSyncWebhookLock'):
         try:
             # Simetimes the webhooks come in too fast,
             # so we need to wait a second to make sure the OnGoingSync object is created
-            time.sleep(1)
+            time.sleep(3)
             # Check if we should stop processing pipedrive webhooks
             stop_pipedrive_webhooks = Toggles.objects.filter(name="Toggles").first()
             if stop_pipedrive_webhooks.stop_pipedrive_webhooks:
@@ -526,9 +560,21 @@ class CustomerSyncWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            request_data = request.data
-            pipedrive_id = request_data["current"]["id"]
+            # request_data = request.data
+            if request.data['current'] is None:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={"ok": True},
+                )
+            request_data = request.data['current']
+            print('\n\nChecking request data: ', request_data)
+            pipedrive_id = request_data["id"]
             customer = Customer.objects.filter(pipedrive_id=pipedrive_id).first()
+            if not customer:
+                return Response(
+                    status=status.HTTP_404_NOT_FOUND,
+                    data={"ok": False},
+                )
 
             # Check if the webhook is being sent as a result of a sync
             ongoing_sync = OngoingSync.objects.filter(
@@ -542,15 +588,16 @@ class CustomerSyncWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            pipedrive_email = request_data["current"]["email"][0]["value"]
-            pipedrive_first_name = request_data["current"]["first_name"]
-            pipedrive_last_name = request_data["current"]["last_name"]
+            pipedrive_email = request_data["email"][0]["value"]
+            pipedrive_first_name = request_data["first_name"]
+            pipedrive_last_name = request_data["last_name"]
             pipedrive_phone = (
-                request_data["current"]["phone"][0]["value"]
-                if request_data["current"]["phone"]
+                request_data["phone"][0]["value"]
+                if request_data["phone"]
                 else None
             )
-
+            
+            print('Checking customer: ', customer)
             # Check if the customer data is the same as the data in the webhook
             # If it is, then we don't need to update the customer
             try:
@@ -573,22 +620,22 @@ class CustomerSyncWebhook(APIView):
                         data={"ok": True, "message": "Synced successfully."},
                     )
             except Exception as e:
-                logger.error(e)
+                print('\n\nPipedrive customer sync webhook failed: ', e)
                 return Response(
                     status=status.HTTP_400_BAD_REQUEST,
                     data={"ok": False, "message": "Failed to process request."},
                 )
 
             # Update customer data
-            customer.first_name = request_data["current"]["first_name"]
-            customer.last_name = request_data["current"]["last_name"]
-            customer.email = request_data["current"]["email"][0]["value"]
-            customer.phone = request_data["current"]["phone"][0]["value"]
+            customer.first_name = request_data["first_name"]
+            customer.last_name = request_data["last_name"]
+            customer.email = request_data["email"][0]["value"]
+            customer.phone = request_data["phone"][0]["value"]
             customer.save(should_sync_pipedrive=False)
 
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
-            logger.error(e)
+            print('\n\nPipedrive customer sync failed: ', e)
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"ok": False, "message": "Failed to process request."},
@@ -688,9 +735,6 @@ class DealCreateWebhook(APIView):
                 pipedrive_id=pipedrive_id
             ).first()
             if existing_package:
-                logger.warning(
-                    "Package already exists in the database: ", existing_package
-                )
                 return Response(status=status.HTTP_200_OK, data={"ok": True})
 
             # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
@@ -811,6 +855,12 @@ class DealSyncWebhook(APIView):
                 )
 
             # Get the pipedrive data
+            if not request_data.get('current'):
+                print('data.current is None')
+                return Response(
+                    status=status.HTTP_400_BAD_REQUEST,
+                    data={"ok": False, "message": "data.current is None"},
+                )
             request_data = request.data["current"]
             pipedrive_id = request_data["id"]
 
