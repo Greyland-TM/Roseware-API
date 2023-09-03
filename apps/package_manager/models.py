@@ -152,6 +152,6 @@ class ServicePackage(models.Model):
 
         piperive_id = self.pipedrive_product_attachment_id
         stripe_subscription_item_id = self.package_plan.stripe_subscription_id
-        owner = self.owner
+        owner = self.package_plan.owner
         super(ServicePackage, self).delete(*args, **kwargs)
         delete_service_package_sync(piperive_id, stripe_subscription_item_id, should_sync_pipedrive, should_sync_stripe, owner)

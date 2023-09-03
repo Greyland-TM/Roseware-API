@@ -206,31 +206,32 @@ class PackagePlanView(APIView):
     def get(self, request):
         """Retrieve a package plan by pk"""
         try:
-            # Get the package plan pk from the request
-            package_plan_pk = request.GET["pk"]
-            package_plan = PackagePlan.objects.filter(pk=package_plan_pk).first()
-
             # Check if request is from an employee
             user = request.user
             if not hasattr(user, "employee") or not user.employee:
                 # Check if the request is coming from the owner of the package plan
                 customer = Customer.objects.get(user=user)
-                if customer != package_plan.customer:
+            else:
+                if "pk" not in request.GET:
                     return Response(
-                        {"ok": False, "error": "Not Authorized"},
-                        status=status.HTTP_401_UNAUTHORIZED,
+                        {
+                            "ok": False,
+                            "error": "pk not found in query params. Please add it and try again.",
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
+                customer = Customer.objects.get(pk=request.GET["pk"])
 
-            # Return an error if the plan doesnt exist
-            if not package_plan:
-                return Response(
-                    {"ok": False, "error": "Package Plan Not Found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+            # Get the package plan pk from the request
+            package_plans = PackagePlan.objects.filter(customer=customer)
 
-            # Return the package plan
             return Response(
-                {"ok": True, "package_plan": PackagePlanSerializer(package_plan).data},
+                {
+                    "ok": True,
+                    "package_plans": PackagePlanSerializer(
+                        package_plans, many=True
+                    ).data,
+                },
                 status=status.HTTP_200_OK,
             )
         except Exception as error:
@@ -514,7 +515,7 @@ class ServicePackageView(APIView):
             return Response(
                 {
                     "ok": True,
-                    "service_package": ServicePackageSerializer(package_plan).data,
+                    "service_package": ServicePackageSerializer(service_package).data,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -560,33 +561,80 @@ class ServicePackageView(APIView):
 
     def delete(self, request):
         """Delete a service package"""
-        # Get the service package pk from the request
-        service_package_pk = request.GET["pk"]
-        service_package = ServicePackage.objects.filter(pk=service_package_pk).first()
+        try:
+            # Get the service package pk from the request
+            service_package_pk = request.GET["pk"]
+            service_package = ServicePackage.objects.filter(pk=service_package_pk).first()
+  
+            # Check if request is from an employee
+            user = request.user
+            if not hasattr(user, "employee") or not user.employee:
+                # Check if the request is coming from the owner of the service package
+                customer = Customer.objects.get(user=user)
+                if customer != service_package.customer:
+                    return Response(
+                        {"ok": False, "error": "Not Authorized"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
 
-        # Check if request is from an employee
-        user = request.user
-        if not hasattr(user, "employee") or not user.employee:
-            # Check if the request is coming from the owner of the service package
-            customer = Customer.objects.get(user=user)
-            if customer != service_package.customer:
+            # Return an error if the plan doesnt exist
+            if not service_package:
                 return Response(
-                    {"ok": False, "error": "Not Authorized"},
-                    status=status.HTTP_401_UNAUTHORIZED,
+                    {"ok": False, "error": "service package Not Found"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
-        # Return an error if the plan doesnt exist
-        if not service_package:
-            return Response(
-                {"ok": False, "error": "service package Not Found"},
-                status=status.HTTP_404_NOT_FOUND,
+            # Delete the service package
+            service_package.delete(should_sync_pipedrive=True, should_sync_stripe=True)
+            return Response({"ok": True}, status=status.HTTP_200_OK)
+        except Exception as error:
+            print(error)
+
+
+class ProfilePackage(APIView):
+    """CRUD operations for social media ads"""
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    def post(self, request):
+        """Post request for making a new add"""
+        packages = request.data["packages"]
+        customer_pk = request.data["customer_pk"]
+        try:
+            customer = Customer.objects.get(pk=customer_pk)
+            new_package_plan = PackagePlan(
+                owner=request.user,
+                customer=customer,
+                name=packages["name"],
+                status=packages["status"],
+                description=packages["description"],
+                billing_cycle="Subscription",
             )
+            new_package_plan.save()
+            for package in packages:
+                package_template = ServicePackageTemplate.objects.filter(
+                    related_app=package["related_app"], type=package["type"]
+                )
 
-        # Delete the service package
-        service_package.delete()
-        return Response({"ok": True}, status=status.HTTP_200_OK)
+                new_service_package = ServicePackage(
+                    customer=customer,
+                    package_plan=new_package_plan,
+                    package_template=package_template,
+                    related_app=package["related_app"],
+                    type=package["type"],
+                    cost=package_template.cost,
+                    is_active=package["is_active"],
+                    requires_onboarding=package["requires_onboarding"],
+                )
+                new_service_package.save()
+            logger.info("customer: ", customer)
+        except Exception as error:
+            logger.error(f"\nError: {error}")
 
-
+        return Response(
+            status=status.HTTP_200_OK, data={"ok": True, "message": "Packages Created"}
+        )
 class ProfilePackage(APIView):
     """CRUD operations for social media ads"""
 

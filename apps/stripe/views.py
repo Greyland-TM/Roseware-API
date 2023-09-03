@@ -23,6 +23,28 @@ logger = make_logger(__name__, stream=True)
 
 stripe.api_key = os.environ.get("STRIPE_PRIVATE")
 
+class StripePaymentPageLink(APIView):
+    """ API view for getting the stripe payment page link """
+
+    def get(self, request):
+        try:
+            if "pk" not in request.GET:
+                return Response({"ok": False, "message": "No pachage pk provided."})
+            
+            frontend_url = os.environ.get("FRONTEND_URL")
+            redirect_url = f'{frontend_url}/dashboard/integrations/'
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
+            stripe_link = stripe.PaymentLink.create(
+                line_items=[{"price": package.stripe_price_id, "quantity": 1}], 
+                after_completion={"type": "redirect", "redirect": {"url": redirect_url}},
+            )
+            
+            return Response(
+                {"ok": True, "message": "Successfully created account link.", "url": stripe_link}
+            )
+        except Exception as e:
+            print(e)
 
 class GetStripeAccountLink(APIView):
     """ API view for getting the stripe account link """

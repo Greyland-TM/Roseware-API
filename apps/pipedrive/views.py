@@ -46,6 +46,7 @@ class PipedriveOauth(APIView):
             code = request.data.get("code")
             customer = Customer.objects.get(user=user)
             frontend_url = os.environ.get("FRONTEND_URL")
+            print('frontend_url: ', frontend_url)
             client_id = os.environ.get("PIPEDRIVE_CLIENT_ID")
             client_secret = os.environ.get("PIPEDRIVE_CLIENT_SECRET")
 

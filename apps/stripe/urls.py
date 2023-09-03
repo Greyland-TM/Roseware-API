@@ -4,10 +4,12 @@ from .views import (CustomerCreateWebhook, CustomerDeleteWebhook,
                     CustomerSyncWebhook, GetStripeAccountLink,
                     ProductCreateWebhook, ProductDeleteWebhook,
                     ProductSyncWebhook, SubscriptionCreateWebhook,
-                    SubscriptionDeleteWebhook, SubscriptionSyncWebhook)
+                    SubscriptionDeleteWebhook, SubscriptionSyncWebhook,
+                    StripePaymentPageLink)
 
 urlpatterns = [
-    path("link/", GetStripeAccountLink.as_view(), name="stripe-link"),
+    path("connect-link/", GetStripeAccountLink.as_view(), name="stripe-link"),
+    path("payment-page-link/", StripePaymentPageLink.as_view(), name="stripe-payment-page-link"),
     path("customer-create-webhook/", CustomerCreateWebhook.as_view()),
     path("customer-sync-webhook/", CustomerSyncWebhook.as_view()),
     path("customer-delete-webhook/", CustomerDeleteWebhook.as_view()),

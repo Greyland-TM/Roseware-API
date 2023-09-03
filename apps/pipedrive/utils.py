@@ -391,6 +391,7 @@ def create_pipedrive_customer(customer):
         # Create the customer in Pipedrive
         # If the owner of the customer is a staff member, use the API key
         # Otherwise, use the OAuth token
+        
         headers = None
         if customer.owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
