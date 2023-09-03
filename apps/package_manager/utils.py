@@ -241,7 +241,7 @@ def create_service_packages(
 ):
     try:
         # Get the package template
-        logger.info(package_details)
+        print("Details: ", package_details)
         packages = package_details["packages"]
         for package in packages:
             related_app = package["related_app"].lower()
@@ -258,7 +258,9 @@ def create_service_packages(
             )
 
         # Create a new Package Plan
+        print('\nCreatuig new plan: ')
         package_plan = PackagePlan.objects.create(
+            owner=owner,
             customer=customer,
             billing_cycle=package_details["billing_cycle"],
             status=package_details["status"],
@@ -266,16 +268,17 @@ def create_service_packages(
             description=package_details["description"],
             stripe_subscription_id=package_details.get("stripe_subscription_id", None),
         )
-        logger.info(package_plan)
+        print(package_plan)
 
         # Create a new Service Package
         for package in packages:
             related_app = package["related_app"].lower()
             type = package["type"].lower()
-            package_template = ServicePackageTemplate.objects.get(
-                related_app=related_app,
-                type=type,
-            )
+            print('\n\nGeting template: ', package)
+            package_template = ServicePackageTemplate.objects.filter(
+                name=package["name"]
+            ).first()
+            print(package_template)
             service_package = ServicePackage(
                 customer=customer,
                 package_template=package_template,

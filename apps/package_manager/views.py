@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import Customer
+from apps.accounts.models import Customer, Employee
 
 from .models import PackagePlan, ServicePackage, ServicePackageTemplate
 from .serializers import (
@@ -243,14 +243,14 @@ class PackagePlanView(APIView):
         """Create a new package plan"""
         try:
             # Get request data and set required / optional fields
-            required_fields = ["name", "type", "customer_pk"]
+            required_fields = ["name", "type"]
             fields_to_assign = ["status", "description", "billing_cycle"]
             data = request.data
 
             # Set the customer
             user = request.user
             if not hasattr(user, "employee") or not user.employee:
-                customer = user
+                customer = Customer.objects.get(user=user)
             else:
                 if "customer_pk" not in data:
                     return Response(
@@ -268,6 +268,8 @@ class PackagePlanView(APIView):
                     )
                 customer = Customer.objects.filter(pk=customer_pk).first()
 
+            print(customer)
+
             # Check if the required fields are in the request data
             for field in required_fields:
                 if field not in data:
@@ -275,7 +277,11 @@ class PackagePlanView(APIView):
                         {"ok": False, "error": f"{field} is required"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-
+            print(data)
+            if "owner" in data and data['owner'] == 'roseware':
+                employee = Employee.objects.get(pk=1)
+                user = employee.user
+                
             # Create a new package plan with required fields
             package_plan = PackagePlan(
                 owner=user,
@@ -295,6 +301,7 @@ class PackagePlanView(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as error:
+            print('Failed with error: ', error)
             return Response(
                 {"ok": False, "error": error}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -435,16 +442,17 @@ class ServicePackageView(APIView):
     def post(self, request):
         """Create a new service package"""
         try:
+            # Print request data
+            print("Request data:", request.data)
+
             # Get request data and check for required fields
             data = request.data
             required_fields = [
                 "package_plan_pk",
                 "package_template_pk",
-                "package_template_pk",
-                "related_app",
                 "type",
                 "is_active",
-                "cost",
+                # "cost",
                 "quantity",
             ]
             for field in required_fields:
@@ -454,13 +462,13 @@ class ServicePackageView(APIView):
                             "ok": False,
                             "error": f"You need to supply a {field} in the request body.",
                         },
-                        status=status.HTTP_404_NOT_FOUND,
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
 
             # Set the customer
             user = request.user
             if not hasattr(user, "employee") or not user.employee:
-                customer = user
+                customer = Customer.objects.get(user=user)
             else:
                 if "customer_pk" not in data:
                     return Response(
@@ -468,15 +476,18 @@ class ServicePackageView(APIView):
                             "ok": False,
                             "error": "You need to supply a customer_pk in the request body.",
                         },
-                        status=status.HTTP_404_NOT_FOUND,
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
                 customer_pk = data["customer_pk"]
                 if not customer_pk:
                     return Response(
                         {"ok": False, "error": "Customer not found"},
-                        status=status.HTTP_404_NOT_FOUND,
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
                 customer = Customer.objects.filter(pk=customer_pk).first()
+
+            # Print customer
+            print("Customer:", customer)
 
             # Get the package plan and template
             package_plan_pk = data["package_plan_pk"]
@@ -490,28 +501,36 @@ class ServicePackageView(APIView):
             if not package_plan:
                 return Response(
                     {"ok": False, "error": "Package Plan Not Found"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             # Return an error if the package template doesnt exist
             if not package_template:
                 return Response(
                     {"ok": False, "error": "Package Template Not Found"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            # Print package_plan and package_template
+            print("Package Plan:", package_plan)
+            print("Package Template:", package_template)
 
             # Create the service package
             service_package = ServicePackage(
                 customer=customer,
                 package_plan=package_plan,
                 package_template=package_template,
-                related_app=data["related_app"],
-                type=data["type"],
+                related_app=data.get("related_app", 'Roseware'),  # Get related_app if it exists
+                type=package_template.type,
                 is_active=data["is_active"],
-                cost=data["cost"],
+                cost=package_template.cost,
                 quantity=data["quantity"],
             )
             service_package.save()
+
+            # Print created service_package
+            print("Created Service Package:", service_package)
+
             return Response(
                 {
                     "ok": True,
@@ -520,9 +539,12 @@ class ServicePackageView(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as error:
+            import traceback
+            traceback.print_exc()
             return Response(
-                {"ok": False, "error": error}, status=status.HTTP_400_BAD_REQUEST
+                {"ok": False, "error": str(error)}, status=status.HTTP_400_BAD_REQUEST
             )
+
 
     def put(self, request):
         """Update a service package"""

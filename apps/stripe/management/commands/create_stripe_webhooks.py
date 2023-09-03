@@ -73,6 +73,11 @@ class Command(BaseCommand):
                     "customer.subscription.deleted",
                     "STRIPE_SUBSCRIPTION_DELETE_WEBHOOK_SECRET",
                 ),
+                (
+                    "payment-intent-success-webhook/",
+                    "payment_intent.succeeded",
+                    "STRIPE_PAYMENT_INTENT_SUCCESS_WEBHOOK_SECRET",
+                ),
             ]
 
             # Get the environment variables
