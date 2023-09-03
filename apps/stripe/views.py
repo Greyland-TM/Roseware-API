@@ -5,7 +5,6 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from apps.accounts.custom_auth import WebhookAuthentication
 from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.package_manager.models import (
@@ -16,35 +15,7 @@ from apps.package_manager.models import (
 from roseware.utils import make_logger
 
 logger = make_logger(__name__, stream=True)
-
-
 stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-
-# class StripePaymentIntentWebhoook(APIView):
-#     """ API view for creating a Stripe payment intent """
-
-#     def post(self, request):
-#         # print('\n\nIN THE WEBHOOK\n\n')
-#         payload = request.body
-#         event = None
-#         # print(f'payload: {payload}')
-
-#         try:
-#             event = stripe.Event.construct_from(
-#                 json.loads(payload), stripe.api_key
-#             )
-#             # print(f'event: {event}')
-#         except ValueError as e:
-#             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Handle the event
-#         if event['type'] == 'payment_intent.succeeded':
-#             session = event['data']['object']
-#             customer_id = session['customer']
-#             subscription_id = session['subscription']
-#             # print(f'customer_id: {customer_id}')
-#             # print(f'subscription_id: {subscription_id}')
-#         return Response({"ok": True, "message": "Successfully created payment intent."})
 
 class StripeSubscriptionCheckoutSession(APIView):
     """ API view for creating a Stripe checkout session for a subscription """
@@ -61,17 +32,18 @@ class StripeSubscriptionCheckoutSession(APIView):
             customer = Customer.objects.get(pk=request.GET["customer_pk"])
             print('customer: ', customer)
 
-            frontend_url = os.environ.get("FRONTEND_URL")
-            success_url = f'{frontend_url}/dashboard/integrations?success=true'
-            cancel_url = f'{frontend_url}/dashboard/integrations'
+            if "redirect_uri" not in request.GET:
+                return Response({"ok": False, "message": "No redirect uri provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+            redirect_url = request.GET['redirect_uri']
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{'price': package.stripe_price_id, 'quantity': 1}],
                 mode='subscription',
-                success_url=success_url,
-                cancel_url=cancel_url,
+                success_url=f'{redirect_url}?success=true',
+                cancel_url=redirect_url,
                 customer=customer.stripe_customer_id, 
             )
             print('Checking: ', checkout_session)
@@ -123,7 +95,7 @@ class GetStripeAccountLink(APIView):
             response = stripe.AccountLink.create(
                 account=customer.stripe_account_id,
                 refresh_url=f"{frontend_url}/dashboard/integrations/",
-                return_url=f"{frontend_url}/dashboard/integrations/",
+                return_url=f"{frontend_url}/dashboard/integrations?connected=true",
                 type="account_onboarding",
             )
             # TODO - has_synced_stripe should update on a webhook after the accound is connected,
@@ -136,6 +108,40 @@ class GetStripeAccountLink(APIView):
 
         except Exception as e:
             print(e)
+            return Response({"ok": False, "message": "An error occurred."})
+
+        
+    def post(self, request):
+        try:
+            # Check the customer's connection status in stripe
+            if "pk" not in request.data:
+                return Response({"ok": False, "message": "No customer pk provided."})
+            
+            customer = Customer.objects.get(pk=request.data["pk"])
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            
+            # Retrieve the account details
+            account = stripe.Account.retrieve(customer.stripe_account_id)
+            
+            # Check if the account is fully onboarded
+            if account['charges_enabled'] and account['details_submitted']:
+                # The onboarding process was successful
+                # Update the customer status in your database if needed
+                customer.has_synced_stripe = True
+                customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
+                return Response({"ok": True, "message": "Account successfully connected."})
+            else:
+                # The onboarding process was not successful
+                # Update the customer status in your database if needed
+                customer.has_synced_stripe = False
+                customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
+                return Response({"ok": False, "message": "Account not fully connected."})
+
+        except Customer.DoesNotExist:
+            return Response({"ok": False, "message": "Customer does not exist."})
+        except Exception as e:
+            print('Failed with error: ', e)
+            return Response({"ok": False, "message": "An unexpected error occurred."})
 
 
 class ProductCreateWebhook(APIView):
