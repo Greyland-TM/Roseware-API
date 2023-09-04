@@ -4,13 +4,14 @@ from django.contrib.auth import authenticate
 from django.db import IntegrityError
 from apps.pipedrive.tasks import sync_pipedrive
 from apps.stripe.tasks import sync_stripe
-
+from django.contrib.auth.models import User
 from .models import OngoingSync
 from roseware.utils import make_logger
 
 logger = make_logger(__name__, stream=True)
 
 def update_or_create_ongoing_sync(type, action, should_sync_stripe, should_sync_pipedrive, sync_platform, owner):
+    owner = User.objects.get(pk=owner)
     # check for an ongoing roseware sync
     ongoing_sync = OngoingSync.objects.filter(type=type, action=action, owner=owner).first()
     if ongoing_sync:

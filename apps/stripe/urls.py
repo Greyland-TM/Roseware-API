@@ -5,7 +5,8 @@ from .views import (CustomerCreateWebhook, CustomerDeleteWebhook,
                     ProductCreateWebhook, ProductDeleteWebhook,
                     ProductSyncWebhook, SubscriptionCreateWebhook,
                     SubscriptionDeleteWebhook, SubscriptionSyncWebhook,
-                    StripePaymentPageLink, StripeSubscriptionCheckoutSession)
+                    StripePaymentPageLink, StripeSubscriptionCheckoutSession,
+                    )
 
 urlpatterns = [
     path("connect-link/", GetStripeAccountLink.as_view(), name="stripe-link"),

@@ -362,13 +362,16 @@ class PackagePlanView(APIView):
     def delete(self, request):
         """Delete a package plan"""
         try:
+            print('check 1')
             # Get the package plan pk from the request
             package_plan_pk = request.GET["pk"]
             package_plan = PackagePlan.objects.filter(pk=package_plan_pk).first()
+            print('check 2')
 
             # Check if request is from an employee
             user = request.user
             if not hasattr(user, "employee") or not user.employee:
+                print('check 3')
                 # Check if the request is coming from the owner of the package plan
                 customer = Customer.objects.get(user=user)
                 if customer != package_plan.customer:
@@ -376,6 +379,7 @@ class PackagePlanView(APIView):
                         {"ok": False, "error": "Not Authorized"},
                         status=status.HTTP_401_UNAUTHORIZED,
                     )
+            print('check 4')
 
             # Return an error if the plan doesnt exist
             if not package_plan:
@@ -383,7 +387,7 @@ class PackagePlanView(APIView):
                     {"ok": False, "error": "Package Plan Not Found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-
+            print('check 5')
             # Delete the package plan
             package_plan.delete()
             return Response({"ok": True}, status=status.HTTP_200_OK)
@@ -584,9 +588,11 @@ class ServicePackageView(APIView):
     def delete(self, request):
         """Delete a service package"""
         try:
+            print('Check 1')
             # Get the service package pk from the request
             service_package_pk = request.GET["pk"]
             service_package = ServicePackage.objects.filter(pk=service_package_pk).first()
+            print('Check 2')
   
             # Check if request is from an employee
             user = request.user
@@ -599,13 +605,14 @@ class ServicePackageView(APIView):
                         status=status.HTTP_401_UNAUTHORIZED,
                     )
 
+            print('Check 3')
             # Return an error if the plan doesnt exist
             if not service_package:
                 return Response(
                     {"ok": False, "error": "service package Not Found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-
+            print('Check 4')
             # Delete the service package
             service_package.delete(should_sync_pipedrive=True, should_sync_stripe=True)
             return Response({"ok": True}, status=status.HTTP_200_OK)
@@ -650,7 +657,7 @@ class ProfilePackage(APIView):
                     requires_onboarding=package["requires_onboarding"],
                 )
                 new_service_package.save()
-            logger.info("customer: ", customer)
+            print("customer: ", customer)
         except Exception as error:
             logger.error(f"\nError: {error}")
 

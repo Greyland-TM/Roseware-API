@@ -13,6 +13,7 @@ from apps.package_manager.models import (
     ServicePackageTemplate,
 )
 from roseware.utils import make_logger
+from .models import StripeSubscription
 
 logger = make_logger(__name__, stream=True)
 stripe.api_key = os.environ.get("STRIPE_PRIVATE")
@@ -47,7 +48,7 @@ class StripeSubscriptionCheckoutSession(APIView):
                 cancel_url=redirect_url,
                 customer=customer.stripe_customer_id, 
             )
-            print('Checking: ', checkout_session)
+            # print('Checking: ', checkout_session)
             url = checkout_session['url']
             return Response(
                 {"ok": True, "message": "Successfully created checkout session.", "url": url}
@@ -99,10 +100,7 @@ class GetStripeAccountLink(APIView):
                 return_url=f"{frontend_url}/dashboard/integrations?connected=true",
                 type="account_onboarding",
             )
-            print('response: ', response)
-            # TODO - has_synced_stripe should update on a webhook after the accound is connected,
-            # in order to avoid false positive connections
-            customer.has_synced_stripe = True
+            
             customer.save(should_sync_pipedrive=False, should_sync_stripe=False)
             return Response(
                 {"ok": True, "message": "Successfully created account link.", "url": response["url"]}
@@ -115,35 +113,42 @@ class GetStripeAccountLink(APIView):
         
     def post(self, request):
         try:
+            print('check 1')
+
             # Check the customer's connection status in stripe
-            if "pk" not in request.data:
+            if "pk" not in request.query_params:
                 return Response({"ok": False, "message": "No customer pk provided."})
-            
-            customer = Customer.objects.get(pk=request.data["pk"])
+
+            print('check 2')
+            customer = Customer.objects.get(pk=request.query_params["pk"])
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-            
+
+            print('check 3')
             # Retrieve the account details
             account = stripe.Account.retrieve(customer.stripe_account_id)
-            
+
+            print('check 4')
+            print('account: ', account)
+
             # Check if the account is fully onboarded
-            if account['charges_enabled'] and account['details_submitted']:
-                # The onboarding process was successful
-                # Update the customer status in your database if needed
+            print('account.requirements: ', account.requirements)
+            if not len(account.requirements.currently_due) > 0:
+                print('Was completed, setting now...')
                 customer.has_synced_stripe = True
                 customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
                 return Response({"ok": True, "message": "Account successfully connected."})
             else:
-                # The onboarding process was not successful
-                # Update the customer status in your database if needed
-                customer.has_synced_stripe = False
-                customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
-                return Response({"ok": False, "message": "Account not fully connected."})
+                print('Was not completed...')
+                # customer.has_synced_stripe = False
+                # customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
+                return Response({"ok": False, "message": "Account not fully connected."}, status=status.HTTP_400_BAD_REQUEST)
 
         except Customer.DoesNotExist:
-            return Response({"ok": False, "message": "Customer does not exist."})
+            return Response({"ok": False, "message": "Customer does not exist."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print('Failed with error: ', e)
-            return Response({"ok": False, "message": "An unexpected error occurred."})
+            return Response({"ok": False, "message": "An unexpected error occurred."}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class ProductCreateWebhook(APIView):
@@ -584,7 +589,7 @@ class SubscriptionCreateWebhook(APIView):
 
         try:
             print("\n\n*** SubscriptionCreateWebhook ***")
-            print(request.data)
+            # print(request.data)
             # logger.info(request.data)
             print('Chewck #!')
             # Check if we should stop processing stripe webhooks
@@ -683,6 +688,7 @@ class SubscriptionCreateWebhook(APIView):
                     "related_app": related_app,
                     "type": type,
                     "requires_onboarding": requires_onboarding,
+                    "status": "won",
                 }
                 package_plan["packages"].append(package)
 
@@ -695,7 +701,7 @@ class SubscriptionCreateWebhook(APIView):
                 print('Chewck #!0')
                 # Create the service packages
                 print(f'customer: {customer}, package_plan: {package_plan}, owner: {owner}')
-                create_service_packages(customer, package_plan, True, False, owner=owner)
+                create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
 
             return Response(
                 status=status.HTTP_200_OK,

@@ -331,8 +331,11 @@ def create_stripe_subscription(subscription, owner):
         if not owner.is_staff:
             stripe_account = owner.stripe_account_id
 
-        # Get all packages associated with the package plan
+        # logger.info('Checking subscription: ', type(subscription))
         package_plan = subscription.package_plan
+        # logger.info("Stripe Subscription ID:", subscription.stripe_subscription_id)
+        # logger.info("Package Plan ID:", package_plan.id)
+        # Get all packages associated with the package plan
         service_packages = ServicePackage.objects.filter(package_plan=package_plan)
         # logger.info(f'Found {len(service_packages)} service packages for {package_plan.name}...')
         # Add the subscription item to the list of items for the subscription
@@ -401,7 +404,7 @@ def update_stripe_subscription(subscription, owner):
     stripe_account = None
     if not owner.is_staff:
         stripe_account = owner.stripe_account_id
-
+    
     def create_new_subscription_price(subscription, service_package):
         if not service_package.stripe_subscription_item_id:
             # logger.warning('No Stripe Subscription Item ID found...')
@@ -431,7 +434,7 @@ def update_stripe_subscription(subscription, owner):
             metadata={"subscription_id": subscription.id},
             stripe_account=stripe_account,
         )
-        # logger.info(f'Created new price: {new_stripe_subscription_item_price}')
+        logger.info(f'Created new price: {new_stripe_subscription_item_price}')
 
         service_package.stripe_subscription_item_price_id = (
             new_stripe_subscription_item_price["id"]
@@ -452,6 +455,10 @@ def update_stripe_subscription(subscription, owner):
     try:
         # Get the PackagePlan associated with the Subscription
         package_plan = subscription.package_plan
+        logger.debug("Package Plan ID:", package_plan.id)
+        logger.debug(type(subscription))
+        logger.debug("Stripe Subscription ID:", subscription.stripe_subscription_id)
+
 
         # Get the ServicePackages associated with the PackagePlan
         service_packages = ServicePackage.objects.filter(package_plan=package_plan)
@@ -488,6 +495,7 @@ def update_stripe_subscription(subscription, owner):
             subscription=subscription.stripe_subscription_id,
             stripe_account=stripe_account,
         )
+        print("stripe_items: ", stripe_items)
         stripe_ids = [item["id"] for item in stripe_items["data"]]
         # logger.info(f'stripe_ids: {stripe_ids}')
 
@@ -553,7 +561,7 @@ def delete_stripe_subscription(stripe_id):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
         # Delete the Stripe Subscription
-        logger.info("\n* DELETING STRIPE SUBSCRIPTION")
+        print("\n* DELETING STRIPE SUBSCRIPTION")
         stripe.Subscription.delete(stripe_id)
         return True
     except Exception as error:

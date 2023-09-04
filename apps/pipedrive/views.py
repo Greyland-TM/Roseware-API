@@ -101,8 +101,9 @@ class PipedriveOauth(APIView):
                     name=f"{customer.first_name} {customer.last_name} - Deal",
                     defaults={"status": "active"},
                 )
+                template_title = os.environ.get("PIPEDRIVE_DEAL_TITLE")
                 package_template = ServicePackageTemplate.objects.filter(
-                    name="Roseware - Pipedrive Stripe Sync"
+                    name=template_title
                 ).first()
             except Exception as e:
                 print(e)
@@ -567,7 +568,7 @@ class CustomerSyncWebhook(APIView):
                     data={"ok": True},
                 )
             request_data = request.data['current']
-            print('\n\nChecking request data: ', request_data)
+            # print('\n\nChecking request data: ', request_data)
             pipedrive_id = request_data["id"]
             customer = Customer.objects.filter(pipedrive_id=pipedrive_id).first()
             if not customer:
@@ -597,7 +598,7 @@ class CustomerSyncWebhook(APIView):
                 else None
             )
             
-            print('Checking customer: ', customer)
+            # print('Checking customer: ', customer)
             # Check if the customer data is the same as the data in the webhook
             # If it is, then we don't need to update the customer
             try:
@@ -754,7 +755,7 @@ class DealCreateWebhook(APIView):
                 pipedrive_id=pipedrive_id,
                 customer=customer,
                 name=request_data["title"],
-                # status=deal_status,
+                # status='won',
                 # type=payment_selection.lower() if payment_selection is not None else None,
             )
 
@@ -854,15 +855,18 @@ class DealSyncWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
+            request_data = request.data['current']
             # Get the pipedrive data
-            if not request_data.get('current'):
+            if not request_data:
                 print('data.current is None')
                 return Response(
                     status=status.HTTP_400_BAD_REQUEST,
                     data={"ok": False, "message": "data.current is None"},
                 )
-            request_data = request.data["current"]
-            pipedrive_id = request_data["id"]
+            # print('\n\nChecking request data in pipedrive webhook: ', request_data)
+            pipedrive_id = request.data["meta"]["id"]
+            # if not pipedrive_id:
+                # pipedrive_id = request_data["meta"]["id"]
 
             # Check if the PackagePlan exists
             package_plan = PackagePlan.objects.filter(pipedrive_id=pipedrive_id).first()
@@ -1086,11 +1090,19 @@ class DealDeleteWebhook(APIView):
                 )
 
             webhook_data = request.data
+            logger.info('\n\n***Deleting deal: ', webhook_data)
             pipedrive_id = webhook_data["previous"]["id"]
-            service_package = PackagePlan.objects.filter(
+            logger.info('Got a pipedrive id: ', pipedrive_id)
+            package_plan = PackagePlan.objects.filter(
                 pipedrive_id=pipedrive_id
             ).first()
-            service_package.delete()
+            if not package_plan:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={"ok": True},
+                )
+            print(' package_plan: ', package_plan)
+            package_plan.delete(should_sync_pipedrive=False, should_sync_stripe=True)
             return Response(status=status.HTTP_200_OK, data={"ok": True})
         except Exception as e:
             logger.error(e)

@@ -176,60 +176,60 @@ AWS_S3_REGION_NAME = "us-west-2"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 AWS_DEFAULT_ACL = None
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "{asctime} {levelname} {module} {message}",
-            "style": "{",
-        },
-        "simple": {
-            "format": "{module}: {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": "logs/debug.log",
-            "level": "DEBUG",
-            "formatter": "verbose",
-        },
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "INFO",
-            "formatter": "simple",
-        },
-    },
-    "loggers": {
-        "": {
-            "level": "INFO",
-            "handlers": ["console"],
-        },
-        "django": {
-            "handlers": ["file"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
-        "django.server": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-    },
-}
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "formatters": {
+#         "verbose": {
+#             "format": "{asctime} {levelname} {module} {message}",
+#             "style": "{",
+#         },
+#         "simple": {
+#             "format": "{module}: {message}",
+#             "style": "{",
+#         },
+#     },
+#     "handlers": {
+#         "file": {
+#             "class": "logging.FileHandler",
+#             "filename": "logs/debug.log",
+#             "level": "DEBUG",
+#             "formatter": "verbose",
+#         },
+#         "console": {
+#             "class": "logging.StreamHandler",
+#             "level": "INFO",
+#             "formatter": "simple",
+#         },
+#     },
+#     "loggers": {
+#         "": {
+#             "level": "INFO",
+#             "handlers": ["console"],
+#         },
+#         "django": {
+#             "handlers": ["file"],
+#             "level": "DEBUG",
+#             "propagate": False,
+#         },
+#         "django.server": {
+#             "handlers": ["console"],
+#             "level": "INFO",
+#             "propagate": False,
+#         },
+#     },
+# }
 
-if not os.path.exists("logs"):
-    # Remove the 'file' handler from the LOGGING dictionary
-    LOGGING["handlers"].pop("file", None)
-    LOGGING["loggers"].pop("django", None)
+# if not os.path.exists("logs"):
+#     # Remove the 'file' handler from the LOGGING dictionary
+#     LOGGING["handlers"].pop("file", None)
+#     LOGGING["loggers"].pop("django", None)
 
-else:
-    # Only if logs directory exists, add the 'file' handler to LOGGING
-    LOGGING["handlers"]["file"] = {
-        "class": "logging.FileHandler",
-        "filename": "logs/debug.log",
-        "level": "DEBUG",
-        "formatter": "verbose",
-    }
+# else:
+#     # Only if logs directory exists, add the 'file' handler to LOGGING
+#     LOGGING["handlers"]["file"] = {
+#         "class": "logging.FileHandler",
+#         "filename": "logs/debug.log",
+#         "level": "DEBUG",
+#         "formatter": "verbose",
+#     }

@@ -122,7 +122,7 @@ class OngoingSync(models.Model):
     has_recieved_pipedrive_webhook = models.BooleanField(default=False)
     stop_stripe_webhook = models.BooleanField(default=False)
     has_recieved_stripe_webhook = models.BooleanField(default=False)
-    owner = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE ,null=True, blank=True)
 
     def save(self, *args, **kwargs):
 

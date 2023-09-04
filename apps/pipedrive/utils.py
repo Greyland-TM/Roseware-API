@@ -796,7 +796,7 @@ def create_pipedrive_deal(package_plan):
         body = {
             "title": package_plan.name,
             "person_id": package_plan.customer.pipedrive_id,
-            "status": package_plan.status,
+            "status": 'won',
             # "49051a6391f07f3175cb0984b6c3a849429d0555": package_plan.billing_cycle,
             pipedrive_deal_stripe_url_key: stripe_url,
         }
@@ -896,6 +896,7 @@ def update_pipedrive_deal(package_plan):
 
 def delete_pipedrive_deal(deal_id, owner):
     try:
+        print('In the delete pipedrive deal function')
         # Delete the deal in Pipedrive
         if owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
@@ -921,7 +922,7 @@ def delete_pipedrive_deal(deal_id, owner):
 
         return was_deleted
     except Exception as e:
-        logger.error(e)
+        logger.info(e)
         return False
 
 
@@ -976,6 +977,7 @@ def create_pipedrive_service_package(service_package):
 
 def update_pipedrive_service_package(service_package):
     try:
+        print('\n\nUPDATING PIPEDRIVE SERVICE PACKAGE\n\n')
         # Add a product to a pipedrive deal
         if service_package.package_plan.owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
@@ -1023,12 +1025,14 @@ def update_pipedrive_service_package(service_package):
 """ DELETE PRODUCT IN PIPEDRIVE DEAL """ ""
 
 
-def delete_pipedrive_service_package(service_package, owner):
+def delete_pipedrive_service_package(service_package, is_owner_staff):
     try:
         # Delete the pipedrive product from a pipedrve deal
-        if owner.is_staff:
+        # print('checking owner staff status: ', owner)
+        if is_owner_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
             pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
+            print('deleting package..')
             url = f"https://{pipedrive_domain}.pipedrive.com/v1"
             f"/deals/{service_package.package_plan.pipedrive_id}0{service_package.pipedrive_product_attachment_id}"
             f"?api_token={pipedrive_key}"
@@ -1045,6 +1049,7 @@ def delete_pipedrive_service_package(service_package, owner):
             response = requests.delete(url, headers=headers)
 
         data = response.json()
+        print('\nChecking response data: ', data, '\n')
         deal_deleted = data["success"]
 
         if not deal_deleted:
@@ -1053,5 +1058,5 @@ def delete_pipedrive_service_package(service_package, owner):
 
         return deal_deleted
     except Exception as e:
-        logger.error(e)
+        print('Failed to delete pipedrive service package: ', e)
         return False
