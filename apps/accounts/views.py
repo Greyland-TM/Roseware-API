@@ -108,7 +108,6 @@ class CreateCustomerAPIView(APIView):
             existing_customer = Customer.objects.filter(email=data.get("email")).first()
             if existing_customer:
                 if existing_customer.status == "customer":
-                    print("check 1")
                     return Response(
                         {
                             "ok": False,
@@ -185,7 +184,7 @@ class CreateCustomerAPIView(APIView):
             create_stripe_account(customer.pk)
 
             if customer.status == "lead":
-                sync_pipedrive.delay(customer.pk, "create", "lead")
+                sync_pipedrive.delay(customer.pk, "create", "lead", owner.pk)
 
             login_seralizer = LoginSerializer(
                 data={"username": user.username, "password": password}

@@ -49,7 +49,7 @@ def create_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
     sync_platform = customer.last_synced_from
 
     # Check for an ongoing sync
-    update_or_create_ongoing_sync('customer', 'create', should_sync_stripe, should_sync_pipedrive, sync_platform, customer.owner)
+    update_or_create_ongoing_sync('customer', 'create', should_sync_stripe, should_sync_pipedrive, sync_platform, customer.owner.pk)
 
     # Create the customer
     if should_sync_pipedrive:
@@ -57,7 +57,8 @@ def create_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
         sync_pipedrive.apply(kwargs={
             'pk': customer.pk,
             'action': 'create',
-            'type': "customer"
+            'type': "customer",
+            "owner_pk": customer.owner.pk,
         })
 
     if should_sync_stripe:
@@ -77,11 +78,11 @@ def update_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
 
     # Check for an ongoing sync
     logger.info('Updating or creating ongoing sync...')
-    update_or_create_ongoing_sync('customer', 'update', should_sync_stripe, should_sync_pipedrive, sync_platform, customer.owner)
+    update_or_create_ongoing_sync('customer', 'update', should_sync_stripe, should_sync_pipedrive, sync_platform, customer.owner.pk)
     # Update the customer
     if should_sync_pipedrive:
         logger.info('Updating customer in pipedrive... (Check celery terminal)')
-        sync_pipedrive.delay(customer.pk, 'update', "customer")
+        sync_pipedrive.delay(customer.pk, 'update', "customer", customer.owner.pk)
 
     if should_sync_stripe:
         logger.info('Updating customer in stripe... (Check celery terminal)')
@@ -91,7 +92,7 @@ def delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_syn
     # Delete the customer
     if should_sync_pipedrive:
         logger.info('Deleting customer in pipedrive... (Check celery terminal)')
-        sync_pipedrive.delay(pipedrive_id, 'delete', "customer")
+        sync_pipedrive.delay(pipedrive_id, 'delete', "customer", customer.owner.pk)
 
     if should_sync_stripe:
         logger.info('Deleting customer in stripe... (Check celery terminal)')

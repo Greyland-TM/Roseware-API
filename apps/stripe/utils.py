@@ -495,7 +495,6 @@ def update_stripe_subscription(subscription, owner):
             subscription=subscription.stripe_subscription_id,
             stripe_account=stripe_account,
         )
-        print("stripe_items: ", stripe_items)
         stripe_ids = [item["id"] for item in stripe_items["data"]]
         # logger.info(f'stripe_ids: {stripe_ids}')
 
@@ -561,7 +560,6 @@ def delete_stripe_subscription(stripe_id):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
         # Delete the Stripe Subscription
-        print("\n* DELETING STRIPE SUBSCRIPTION")
         stripe.Subscription.delete(stripe_id)
         return True
     except Exception as error:

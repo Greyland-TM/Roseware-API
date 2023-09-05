@@ -19,8 +19,6 @@ logger = make_logger(__name__, stream=True)
 
 @app.task(default_retry_delay=10, max_retries=3)
 def sync_pipedrive(pk, action, type, owner_pk):
-    print('In the sync_pipedrive task')
-    logger.info('In the sync_pipedrive task')
     # Get customer details
     owner = User.objects.get(pk=owner_pk)
 
@@ -94,7 +92,6 @@ def sync_pipedrive(pk, action, type, owner_pk):
 
             # *** Delete Existing Pipedrive Deal ***
             elif action == 'delete':
-                logger.info('Deleting deal')
                 was_deleted = delete_pipedrive_deal(pk, owner)  # On delete, the pk is actually the pipedrive_id
                 if not was_deleted:
                     logger.error('*** Failed to delete deal in Pipedrive ***')
@@ -122,7 +119,6 @@ def sync_pipedrive(pk, action, type, owner_pk):
                 was_deleted = delete_pipedrive_service_package(service_package, owner)
 
         elif type == 'lead':
-            logger.info('\n\nCREATING PIPEDRRIVE LEAD\n\n')
             customer_qs = Customer.objects.filter(pk=pk)
             customer = customer_qs.first()
 

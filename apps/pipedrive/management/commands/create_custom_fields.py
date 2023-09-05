@@ -30,8 +30,6 @@ class Command(BaseCommand):
             # Add the "Type" field to dealFields
             url = f"https://{pipedrive_domain}.pipedrive.com/v1/dealFields?api_token={pipedrive_api_key}"
             response = requests.post(url, json=data)
-            logger.info(response.json())
-            logger.info(response.status_code)
 
             # Check the response status
             field_id = response.json().get("data", {}).get("id")

@@ -101,8 +101,6 @@ def create_package_plan_sync(
 
     # Get the sync platform
     sync_platform = package_plan.last_synced_from
-    print("Creating package plan sync...")
-    print(owner)
     # Check for an ongoing sync
     update_or_create_ongoing_sync(
         type="package_plan",
@@ -162,10 +160,7 @@ def delete_package_plan_sync(
     # Delete the package plan
     if should_sync_pipedrive:
         logger.info("Deleting package plan in Pipedrive... (Check celery terminal)")
-        logger.info(owner)
-        sync_pipedrive.apply(
-            kwargs={pipedrive_id, "delete", "package_plan", owner}
-        )
+        sync_pipedrive.delay(pipedrive_id, "delete", "package_plan", owner)
     logger.info(f"should_sync_stripe value: {should_sync_stripe}")
     if should_sync_stripe:
         # TODO - Check the package plan type and send the correct type to the sync_stripe task
@@ -196,7 +191,7 @@ def create_service_package_sync(
     if should_sync_pipedrive:
         logger.info("Creating service package in Pipedrive... (Check celery terminal)")
         sync_pipedrive.apply(
-            kwargs={"pk": package.pk, "action": "create", "type": "service_package"}
+            kwargs={"pk": package.pk, "action": "create", "type": "service_package", "owner_pk": owner}
         )
     if should_sync_stripe:
         logger.info("Creating service package in Stripe... (Check celery terminal)")
@@ -223,7 +218,7 @@ def update_service_package_sync(
     # should_sync_pipedrive=should_sync_pipedrive,
     # sync_platform=sync_platform)
 
-    # Update the service package
+    # Update the service Creating service package in Pipedrive...
     if should_sync_pipedrive:
         logger.info("Updating service package in Pipedrive... (Check celery terminal)")
         sync_pipedrive.delay(package.pk, "update", "service_package", owner)
@@ -236,7 +231,7 @@ def delete_service_package_sync(
     pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner
 ):
     # Delete the service package
-    print("Deleting service package... ", pipedrive_id, stripe_id)
+    logger.info("Deleting service package... ", pipedrive_id, stripe_id)
     if should_sync_stripe:
         logger.info("Deleting service package in Stripe... (Check celery terminal)")
         sync_stripe.delay(stripe_id, "update", "subscription")
@@ -253,7 +248,6 @@ def create_service_packages(
 ):
     try:
         # Get the package template
-        # print("Details: ", package_details)
         packages = package_details["packages"]
         for package in packages:
             related_app = package["related_app"].lower()
@@ -270,7 +264,6 @@ def create_service_packages(
             )
 
         # Create a new Package Plan
-        # print('\nCreatuig new plan: ')
         package_plan = PackagePlan.objects.create(
             owner=owner,
             customer=customer,
@@ -299,11 +292,9 @@ def create_service_packages(
         for package in packages:
             related_app = package["related_app"].lower()
             type = package["type"].lower()
-            # print('\n\nGeting template: ', package)
             package_template = ServicePackageTemplate.objects.filter(
                 name=package["name"]
             ).first()
-            # print(package_template)
             service_package = ServicePackage(
                 customer=customer,
                 package_template=package_template,

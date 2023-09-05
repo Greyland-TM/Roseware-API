@@ -27,17 +27,14 @@ class StripeSubscriptionCheckoutSession(APIView):
                 return Response({"ok": False, "message": "No package pk provided."}, status=status.HTTP_400_BAD_REQUEST)
             
             # Get the customer's stripe_customer_id
-            print('customer_pk: ', request.GET['customer_pk'])
             if "customer_pk" not in request.GET:
                 return Response({"ok": False, "message": "No customer pk provided."}, status=status.HTTP_400_BAD_REQUEST)
             customer = Customer.objects.get(pk=request.GET["customer_pk"])
-            print('customer: ', customer)
 
             if "redirect_url" not in request.GET:
                 return Response({"ok": False, "message": "No redirect uri provided."}, status=status.HTTP_400_BAD_REQUEST)
 
             redirect_url = request.GET['redirect_url']
-            print('redirect_url: ', redirect_url)
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
             checkout_session = stripe.checkout.Session.create(
@@ -48,7 +45,6 @@ class StripeSubscriptionCheckoutSession(APIView):
                 cancel_url=redirect_url,
                 customer=customer.stripe_customer_id, 
             )
-            # print('Checking: ', checkout_session)
             url = checkout_session['url']
             return Response(
                 {"ok": True, "message": "Successfully created checkout session.", "url": url}
@@ -113,34 +109,23 @@ class GetStripeAccountLink(APIView):
         
     def post(self, request):
         try:
-            print('check 1')
 
             # Check the customer's connection status in stripe
             if "pk" not in request.query_params:
                 return Response({"ok": False, "message": "No customer pk provided."})
 
-            print('check 2')
             customer = Customer.objects.get(pk=request.query_params["pk"])
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
 
-            print('check 3')
             # Retrieve the account details
             account = stripe.Account.retrieve(customer.stripe_account_id)
 
-            print('check 4')
-            print('account: ', account)
-
             # Check if the account is fully onboarded
-            print('account.requirements: ', account.requirements)
             if not len(account.requirements.currently_due) > 0:
-                print('Was completed, setting now...')
                 customer.has_synced_stripe = True
                 customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
                 return Response({"ok": True, "message": "Account successfully connected."})
             else:
-                print('Was not completed...')
-                # customer.has_synced_stripe = False
-                # customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
                 return Response({"ok": False, "message": "Account not fully connected."}, status=status.HTTP_400_BAD_REQUEST)
 
         except Customer.DoesNotExist:
@@ -588,10 +573,6 @@ class SubscriptionCreateWebhook(APIView):
         from apps.package_manager.utils import create_service_packages
 
         try:
-            print("\n\n*** SubscriptionCreateWebhook ***")
-            # print(request.data)
-            # logger.info(request.data)
-            print('Chewck #!')
             # Check if we should stop processing stripe webhooks
             stop_stripe_webhooks = Toggles.objects.filter(name="Toggles").first()
             if stop_stripe_webhooks.stop_stripe_webhooks:
@@ -600,7 +581,6 @@ class SubscriptionCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('Chewck #2')
             # # Check for any on going sync objects
             ongoing_sync = OngoingSync.objects.filter(
                 type="package_plan", action="create"
@@ -614,7 +594,6 @@ class SubscriptionCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('Chewck #3')
             # Get the subscription id and customer id
             subscription_id = request.data["data"]["object"]["id"]
             customer_id = request.data["data"]["object"]["customer"]
@@ -623,7 +602,6 @@ class SubscriptionCreateWebhook(APIView):
             subscription = request.data["data"]["object"]
             items = subscription["items"]["data"]
 
-            print('Chewck #4')
             for item in items:
                 product_id = item["price"]["product"]
                 price_id = item["price"]["id"]
@@ -632,7 +610,6 @@ class SubscriptionCreateWebhook(APIView):
                 product_name = product["name"]
                 product_details.append((product_id, price_id, price_value, product_name))
 
-            print('Chewck #5')
             # Check if the customer exists
             customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
             if not customer:
@@ -644,7 +621,6 @@ class SubscriptionCreateWebhook(APIView):
                         data={"ok": True, "message": "Synced successfully."},
                     )
 
-            print('Chewck #6')
             # Check if the package plan already exists
             package_plan = PackagePlan.objects.filter(
                 stripe_subscription_id=subscription_id
@@ -656,7 +632,6 @@ class SubscriptionCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('Chewck #7')
             package_plan = {
                 "owner": request.user,
                 'billing_cycle': 'monthly',
@@ -667,7 +642,6 @@ class SubscriptionCreateWebhook(APIView):
                 "packages": [],
             }
 
-            print('Chewck #8')
             for item in items:
                 product_id = item["price"]["product"]
                 price_id = item["price"]["id"]
@@ -679,7 +653,6 @@ class SubscriptionCreateWebhook(APIView):
                 related_app = product_name.split(" ", 1)[0]
                 type = product_name.split(" ", 1)[1]
 
-                print('Chewck #9')
                 package = {
                     "stripe_product_id": product_id,
                     "stripe_price_id": price_id,
@@ -698,9 +671,7 @@ class SubscriptionCreateWebhook(APIView):
                 else:
                     owner = customer.rep.user
 
-                print('Chewck #!0')
                 # Create the service packages
-                print(f'customer: {customer}, package_plan: {package_plan}, owner: {owner}')
                 create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
 
             return Response(
@@ -708,7 +679,6 @@ class SubscriptionCreateWebhook(APIView):
                 data={"ok": True, "message": "Synced successfully."},
             )
         except Exception as e:
-            print(f"\n\n@#$CHECKING ERROR NOW: {e}")
             return Response(
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"ok": False, "message": "Failed to process request."},
