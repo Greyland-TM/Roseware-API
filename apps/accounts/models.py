@@ -63,6 +63,7 @@ class Customer(models.Model):
         from .utils import create_customer_sync, update_customer_sync
 
         is_new = self._state.adding
+        owner_pk = self.owner.pk if self.owner else None
 
         # If it's a new customer, set the first name, last name, and email to the user's
         if is_new:
@@ -88,11 +89,12 @@ class Customer(models.Model):
         pipedrive_id = self.pipedrive_id
         stripe_id = self.stripe_customer_id
         user = self.user
+        owner_pk = self.owner.pk if self.owner else None
         
         super(Customer, self).delete(*args, **kwargs)
         user.delete()
         
-        delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive)
+        delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive, owner_pk)
 
     def __str__(self):
         return self.first_name

@@ -95,6 +95,11 @@ class PackagePlan(models.Model):
     def delete(self, should_sync_pipedrive=True, should_sync_stripe=True, *args, **kwargs):
         from .utils import delete_package_plan_sync
 
+        # Before deleting the PackagePlan instance, delete each related ServicePackage instance
+        for service_package in self.servicepackage_set.all():
+            service_package.delete(should_sync_pipedrive=should_sync_pipedrive, should_sync_stripe=should_sync_stripe)
+
+
         pk = self.pipedrive_id
         stripe_subscription_id = self.stripe_subscription_id
         owner = self.owner
@@ -124,7 +129,7 @@ class ServicePackage(models.Model):
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     package_template = models.ForeignKey(ServicePackageTemplate, on_delete=models.CASCADE, default=None, null=True, blank=True)
-    package_plan = models.ForeignKey(PackagePlan, on_delete=models.CASCADE, default=None, null=True, blank=True)
+    package_plan = models.ForeignKey(PackagePlan, on_delete=models.SET_NULL, default=None, null=True, blank=True)
     related_app = CharField(max_length=100, default="", choices=RELATED_APP_CHOICES)
     type = CharField(max_length=100, default="", choices=TYPE_CHOICES)
     is_active = BooleanField(default=True)
@@ -160,14 +165,14 @@ class ServicePackage(models.Model):
         piperive_id = self.pipedrive_product_attachment_id
         stripe_subscription_item_id = self.package_plan.stripe_subscription_id
         owner = self.package_plan.owner
+        customer = self.customer
         title = self.package_template.name
         super(ServicePackage, self).delete(*args, **kwargs)
         delete_service_package_sync(piperive_id, stripe_subscription_item_id, should_sync_pipedrive, should_sync_stripe, owner.pk)
 
         # If the pipedrive-stripe sync was deleted set the customer's sync status to false
         template_title = os.environ.get("PIPEDRIVE_DEAL_TITLE")
-        if title == template_title and not owner.is_staff:
-            customer = Customer.objects.get(user=owner)
+        if title == template_title:
             customer.has_synced_pipedrive = False
             customer.has_synced_stripe = False
             customer.save(should_sync_pipedrive=False, should_sync_stripe=False)

@@ -32,7 +32,6 @@ from .utils import (
 
 logger = make_logger(__name__)
 
-
 class PipedriveOauth(APIView):
     """
     This view will recieve a code from an oauth redirect from pipedrive.
@@ -87,54 +86,6 @@ class PipedriveOauth(APIView):
             customer.piprdrive_api_url = piprdrive_api_url
             customer.has_synced_pipedrive = True
             customer.save()
-
-            employee = Employee.objects.all().first()
-
-            # Get or create The Package Plan
-            try:
-                package_plan, created = PackagePlan.objects.get_or_create(
-                    owner=employee.user,
-                    customer=customer,
-                    name=f"{customer.first_name} {customer.last_name} - Deal",
-                    defaults={"status": "active"},
-                )
-                template_title = os.environ.get("PIPEDRIVE_DEAL_TITLE")
-                package_template = ServicePackageTemplate.objects.filter(
-                    name=template_title
-                ).first()
-            except Exception as e:
-                logger.error(e)
-
-            if created:
-                setup_payment_details(
-                    customer=customer,
-                    payment_details={
-                        "card_number": "4242424242424242",
-                        "expiry_month": "01",
-                        "expiry_year": "2025",
-                        "cvc": "123",
-                    },
-                    package_plan=package_plan,
-                )
-
-                service_package = ServicePackage.objects.get_or_create(
-                    customer=customer,
-                    package_template=package_template,
-                    package_plan=package_plan,
-                    cost=package_template.cost,
-                )
-
-                if not service_package:
-                    return Response(
-                        {"ok": False, "message": "Error creating service package."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                stripe_subscription = StripeSubscription(
-                    customer=customer,
-                    package_plan=package_plan,
-                )
-                stripe_subscription.save()
 
             create_pipedrive_webhooks(access_token, customer)
             create_pipedrive_type_fields(customer.pk)
@@ -1050,9 +1001,7 @@ class DealDeleteWebhook(APIView):
                 )
 
             webhook_data = request.data
-            logger.info('\n\n***Deleting deal: ', webhook_data)
             pipedrive_id = webhook_data["previous"]["id"]
-            logger.info('Got a pipedrive id: ', pipedrive_id)
             package_plan = PackagePlan.objects.filter(
                 pipedrive_id=pipedrive_id
             ).first()

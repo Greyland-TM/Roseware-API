@@ -88,11 +88,11 @@ def update_customer_sync(customer, should_sync_stripe, should_sync_pipedrive):
         logger.info('Updating customer in stripe... (Check celery terminal)')
         sync_stripe.delay(customer.pk, 'update', "customer")
 
-def delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive):
+def delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive, owner_pk):
     # Delete the customer
     if should_sync_pipedrive:
         logger.info('Deleting customer in pipedrive... (Check celery terminal)')
-        sync_pipedrive.delay(pipedrive_id, 'delete', "customer", customer.owner.pk)
+        sync_pipedrive.delay(pipedrive_id, 'delete', "customer", owner_pk)
 
     if should_sync_stripe:
         logger.info('Deleting customer in stripe... (Check celery terminal)')
