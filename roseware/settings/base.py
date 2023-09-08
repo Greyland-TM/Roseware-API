@@ -33,6 +33,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
 CORS_ORIGIN_ALLOW_ALL = True
+CSRF_TRUSTED_ORIGINS = [os.environ.get("BACKEND_URL")]
+
 
 # Application definition
 INSTALLED_APPS = [
