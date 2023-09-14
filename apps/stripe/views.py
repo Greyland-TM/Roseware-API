@@ -37,6 +37,7 @@ class StripeSubscriptionCheckoutSession(APIView):
             redirect_url = request.GET['redirect_url']
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
+            print('Checking package: ', package)
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{'price': package.stripe_price_id, 'quantity': 1}],
