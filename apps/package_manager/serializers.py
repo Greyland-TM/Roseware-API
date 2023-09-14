@@ -12,11 +12,20 @@ class ServicePackageTemplateSerializer(serializers.ModelSerializer):
         """Meta class for ServicePackageTemplate"""
 
         model = ServicePackageTemplate
-        fields = ("id", "related_app", "description", "name", "type", "cost", "requires_onboarding")
+        fields = (
+            "id",
+            "related_app",
+            "description",
+            "name",
+            "type",
+            "cost",
+            "requires_onboarding",
+        )
 
 
 class PackagePlanSerializer(serializers.ModelSerializer):
     """Serializer for package plans"""
+
     service_packages = serializers.SerializerMethodField()
 
     def get_service_packages(self, obj=None):
@@ -28,17 +37,24 @@ class PackagePlanSerializer(serializers.ModelSerializer):
         """Meta class for PackagePlanSerializer"""
 
         model = PackagePlan
-        fields = ("id", "name", "status", "type", "description", "billing_cycle", "service_packages")
+        fields = (
+            "id",
+            "name",
+            "status",
+            "type",
+            "description",
+            "billing_cycle",
+            "service_packages",
+        )
 
 
-
-# TODO - This serializer is broken, and not used anywhere
 class ServicePackageSerializer(serializers.ModelSerializer):
-    """Serializer for service packages"""
+    def get_template_title(self, obj):
+        return obj.package_template.name
+    
+    template_title = serializers.SerializerMethodField(method_name="get_template_title")
 
     class Meta:
-        """Meta class for ServicePackageSerializer"""
-
         model = ServicePackage
         fields = (
             "id",
@@ -47,4 +63,5 @@ class ServicePackageSerializer(serializers.ModelSerializer):
             "is_active",
             "cost",
             "quantity",
+            "template_title",
         )

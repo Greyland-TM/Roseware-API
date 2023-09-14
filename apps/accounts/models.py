@@ -41,11 +41,12 @@ class Customer(models.Model):
     pipedrive_user_id = CharField(default="", max_length=100, null=True, blank=True)
     piprdrive_api_url = CharField(max_length=100, null=True, blank=True, default="")
     stripe_customer_id = CharField(default="", max_length=100, null=True, blank=True)
+    stripe_account_id = CharField(default="", max_length=100, null=True, blank=True)
     original_sync_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     last_synced_from = CharField(max_length=100, null=True, blank=True, default="roseware")
     has_synced_pipedrive = models.BooleanField(default=False)
     has_synced_stripe = models.BooleanField(default=False)
-    beta_feature_flag = models.BooleanField(default=False)
+    beta_feature_flag = models.BooleanField(default=True)
     
     # Pipedrive api key / oauth token. Depends on the user making the request. Employee's should use the api keys.
     PIPEDRIVE_PERSON_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
@@ -62,6 +63,7 @@ class Customer(models.Model):
         from .utils import create_customer_sync, update_customer_sync
 
         is_new = self._state.adding
+        owner_pk = self.owner.pk if self.owner else None
 
         # If it's a new customer, set the first name, last name, and email to the user's
         if is_new:
@@ -87,11 +89,12 @@ class Customer(models.Model):
         pipedrive_id = self.pipedrive_id
         stripe_id = self.stripe_customer_id
         user = self.user
+        owner_pk = self.owner.pk if self.owner else None
         
         super(Customer, self).delete(*args, **kwargs)
         user.delete()
         
-        delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive)
+        delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive, owner_pk)
 
     def __str__(self):
         return self.first_name
@@ -121,7 +124,7 @@ class OngoingSync(models.Model):
     has_recieved_pipedrive_webhook = models.BooleanField(default=False)
     stop_stripe_webhook = models.BooleanField(default=False)
     has_recieved_stripe_webhook = models.BooleanField(default=False)
-    owner = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE ,null=True, blank=True)
 
     def save(self, *args, **kwargs):
 
