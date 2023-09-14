@@ -4,7 +4,7 @@ from celery import Celery
 from celery.schedules import crontab
 from roseware.utils import make_logger
 
-logger = make_logger(__name__)
+# logger = make_logger(__name__)
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "roseware.settings.base")
@@ -14,9 +14,9 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Celery hijacks the root logger and configures it itself by default.
 # This prevents Celery from doing that.
-@setup_logging.connect
-def celery_setup_logging(*args, **kwargs):
-    pass
+# @setup_logging.connect
+# def celery_setup_logging(*args, **kwargs):
+#     pass
 
 
 # Load task modules from all registered Django apps.
@@ -43,11 +43,11 @@ app.conf.beat_schedule = {
 }
 
 ### Debug task ###
-@app.task
-def debug():
-    logger.debug("this is a debug test!")
-    logger.info("this is an info test")
-    logger.warning("this is a warning test!")
-    logger.error("this is an error test!")
-    logger.critical("this is a critical test!")
+# @app.task
+# def debug():
+#     logger.debug("this is a debug test!")
+#     logger.info("this is an info test")
+#     logger.warning("this is a warning test!")
+#     logger.error("this is an error test!")
+#     logger.critical("this is a critical test!")
 

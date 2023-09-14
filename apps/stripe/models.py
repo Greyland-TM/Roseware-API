@@ -1,5 +1,6 @@
 from django.db import models
 from roseware.utils import make_logger
+from django.contrib.auth.models import User
 
 logger = make_logger(__name__, stream=True)
 
@@ -61,6 +62,7 @@ class StripePaymentDetails(models.Model):
 
 
 class StripeSubscription(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscription_owner", null=True, blank=True)
     customer = models.ForeignKey("accounts.Customer", on_delete=models.CASCADE)
     package_plan = models.ForeignKey(
         "package_manager.PackagePlan", on_delete=models.CASCADE, blank=True, null=True
@@ -94,6 +96,4 @@ class StripeSubscription(models.Model):
 
         if should_sync_stripe:
             logger.info("Deleting subscription in Stripe... (Check celery terminal)")
-            sync_stripe.delay(
-                kwargs={"pk": stripe_id, "action": "delete", "type": "subscription"}
-            )
+            sync_stripe.delay(stripe_id, "delete", "subscription")
