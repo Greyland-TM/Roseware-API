@@ -60,6 +60,7 @@ class PipedriveOauth(APIView):
                 "client_secret": client_secret,
                 "redirect_uri": f"{frontend_url}/dashboard/integrations",
             }
+            print(payload)
             response = requests.post(url, data=payload)
             data = response.json()
 
