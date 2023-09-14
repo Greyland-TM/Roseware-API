@@ -48,7 +48,9 @@ def set_pipedrive_keys(customer_pk, access_token, refresh_token):
     oauth_tokens = secret_dict["roseware-secrets"][env]["oauth-tokens"]
     customer_key = str(customer_pk)
     if customer_key in oauth_tokens:
-        logger.warning(f"Credentials for customer {customer_key} already exist. Overwriting.")
+        logger.warning(
+            f"Credentials for customer {customer_key} already exist. Overwriting."
+        )
 
     oauth_tokens[customer_key] = {
         "access_token": access_token,
@@ -116,6 +118,7 @@ def create_pipedrive_stripe_url_fields(customer_pk):
         customer.PIPEDRIVE_PERSON_STRIPE_URL_KEY = person_key
         customer.PIPEDRIVE_DEAL_STRIPE_URL_KEY = deal_key
         customer.PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = product_key
+        print(f'\n\nCustomer: {customer.__dict__}\n\n')
         customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
         logger.info("Created stripe url fields in pipedrive successfully!")
 
@@ -131,6 +134,7 @@ def create_pipedrive_type_fields(customer_pk):
         # pipedrive_api_key = os.environ.get('PIPEDRIVE_API_KEY')
         pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
         customer = Customer.objects.get(pk=customer_pk)
+        print("Customer before update:", customer.__dict__)
 
         # Setup the pipedrive_field_data array that will be used for making the new fields
         choices = ["Subscription", "One Time"]
@@ -175,6 +179,7 @@ def create_pipedrive_type_fields(customer_pk):
         for field in pipedrive_field_data:
             response = requests.post(url, json=field, headers=headers)
             data = response.json()
+            # print(f'\n\nResponse data: {data}')
             if not data["success"] or data["success"] == False:
                 return False
             field_id = data["data"]["id"]
@@ -196,6 +201,7 @@ def create_pipedrive_type_fields(customer_pk):
                 requests.put(update_url, json=update_data)
 
             # Save the customer
+            # print(f'\n\nField name: {field_name}, payment_label: {payment_label}')
             options = data["data"]["options"]
             if field_name == payment_label:
                 customer.PIPEDRIVE_DEAL_TYPE_FIELD = str(field_id)
@@ -222,12 +228,16 @@ def create_pipedrive_type_fields(customer_pk):
                     customer.PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR = str(
                         process_immediately_option_id
                     )
+                else:
+                    print('\nNot saved to customer...\n')
 
+        print("Customer after update:", customer.__dict__)
         customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
         logger.info("Saved the option ids to the customer successfully!")
         return True
 
     except Exception as error:
+        print(f'\nFucked up: {error}')
         logger.error(f"Failed to create custom fields: {error}")
         return False
 
@@ -300,6 +310,8 @@ def create_pipedrive_webhooks(access_token=None, customer=None):
                 url = f"{backend_url}/{url_path}?pk={customer.pk}"
             else:
                 url = f"{backend_url}/{url_path}"
+
+            print("Setting url: ", url)
 
             # Construct the webhook data
             data = {
@@ -379,6 +391,7 @@ def create_pipedrive_customer(customer):
         # Create the customer in Pipedrive
         # If the owner of the customer is a staff member, use the API key
         # Otherwise, use the OAuth token
+        
         headers = None
         if customer.owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
@@ -438,6 +451,7 @@ def create_pipedrive_customer(customer):
 
 
 def update_pipedrive_customer(customer):
+    print('\n\nUPDATING PIPEDRIVE CUSTOMER\n\n')
     try:
         # Create the customer in Pipedrive
         # If the owner of the customer is a staff member, use the API key
@@ -469,6 +483,7 @@ def update_pipedrive_customer(customer):
             stripe_url = f"https://dashboard.stripe.com/test/customers/{customer.stripe_customer_id}"
 
         # Make the request to create the customer in Pipedrive
+        print('pipedrive_person_stripe_url_key: ', pipedrive_person_stripe_url_key, ' stripe_url: ', stripe_url)
         body = {
             "name": f"{customer.first_name} {customer.last_name}",
             "email": f"{customer.email}",
@@ -781,7 +796,7 @@ def create_pipedrive_deal(package_plan):
         body = {
             "title": package_plan.name,
             "person_id": package_plan.customer.pipedrive_id,
-            "status": package_plan.status,
+            "status": 'won',
             # "49051a6391f07f3175cb0984b6c3a849429d0555": package_plan.billing_cycle,
             pipedrive_deal_stripe_url_key: stripe_url,
         }
@@ -881,6 +896,7 @@ def update_pipedrive_deal(package_plan):
 
 def delete_pipedrive_deal(deal_id, owner):
     try:
+        print('In the delete pipedrive deal function')
         # Delete the deal in Pipedrive
         if owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
@@ -906,7 +922,7 @@ def delete_pipedrive_deal(deal_id, owner):
 
         return was_deleted
     except Exception as e:
-        logger.error(e)
+        logger.info(e)
         return False
 
 
@@ -961,6 +977,7 @@ def create_pipedrive_service_package(service_package):
 
 def update_pipedrive_service_package(service_package):
     try:
+        print('\n\nUPDATING PIPEDRIVE SERVICE PACKAGE\n\n')
         # Add a product to a pipedrive deal
         if service_package.package_plan.owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
@@ -1008,12 +1025,14 @@ def update_pipedrive_service_package(service_package):
 """ DELETE PRODUCT IN PIPEDRIVE DEAL """ ""
 
 
-def delete_pipedrive_service_package(service_package, owner):
+def delete_pipedrive_service_package(service_package, is_owner_staff):
     try:
         # Delete the pipedrive product from a pipedrve deal
-        if owner.is_staff:
+        # print('checking owner staff status: ', owner)
+        if is_owner_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
             pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
+            print('deleting package..')
             url = f"https://{pipedrive_domain}.pipedrive.com/v1"
             f"/deals/{service_package.package_plan.pipedrive_id}0{service_package.pipedrive_product_attachment_id}"
             f"?api_token={pipedrive_key}"
@@ -1030,6 +1049,7 @@ def delete_pipedrive_service_package(service_package, owner):
             response = requests.delete(url, headers=headers)
 
         data = response.json()
+        print('\nChecking response data: ', data, '\n')
         deal_deleted = data["success"]
 
         if not deal_deleted:
@@ -1038,5 +1058,5 @@ def delete_pipedrive_service_package(service_package, owner):
 
         return deal_deleted
     except Exception as e:
-        logger.error(e)
+        print('Failed to delete pipedrive service package: ', e)
         return False

@@ -3,7 +3,7 @@ from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
 from roseware.celery import app
 from roseware.utils import make_logger
-
+from django.contrib.auth.models import User
 from .utils import (create_pipedrive_customer, create_pipedrive_deal,
                     create_pipedrive_lead, create_pipedrive_package_template,
                     create_pipedrive_service_package,
@@ -18,8 +18,9 @@ from .utils import (create_pipedrive_customer, create_pipedrive_deal,
 logger = make_logger(__name__, stream=True)
 
 @app.task(default_retry_delay=10, max_retries=3)
-def sync_pipedrive(pk, action, type, owner=None):
+def sync_pipedrive(pk, action, type, owner_pk):
     # Get customer details
+    owner = User.objects.get(pk=owner_pk)
 
     try:
         if type == 'customer':
@@ -118,7 +119,6 @@ def sync_pipedrive(pk, action, type, owner=None):
                 was_deleted = delete_pipedrive_service_package(service_package, owner)
 
         elif type == 'lead':
-            logger.info('\n\nCREATING PIPEDRRIVE LEAD\n\n')
             customer_qs = Customer.objects.filter(pk=pk)
             customer = customer_qs.first()
 

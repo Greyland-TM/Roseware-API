@@ -32,6 +32,8 @@ boto3 = "*"
 pillow = "*"
 aws-secrets = "*"
 django-aws-secrets-manager = "*"
+django-redis = "*"
+django-phonenumber-field = {extras = [ "phonenumberslite",], version = "*"}
 
 [dev-packages]
 flake8 = "*"
@@ -39,7 +41,3 @@ black = "*"
 
 [requires]
 python_version = "*"
-
-[packages.django-phonenumber-field]
-extras = [ "phonenumberslite",]
-version = "*"

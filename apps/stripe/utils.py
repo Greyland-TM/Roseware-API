@@ -19,13 +19,29 @@ logger = make_logger(__name__, stream=True)
 """ CREATE STRIPE DETAILS """
 
 
+def create_stripe_account(customer):
+    # Create a Stripe Customer
+    stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+    try:
+        response = stripe.Account.create(
+            type="standard", country="US", email=customer.email
+        )
+        stripe_account_id = response["id"]
+        customer.stripe_account_id = stripe_account_id
+        customer.save(should_sync_stripe=False, should_sync_pipedrive=False)
+        return True
+    except Exception as error:
+        logger.error(f"\nError: {error}")
+        return False
+
+
 def setup_payment_details(customer, payment_details, package_plan):
     # Create a Stripe Payment Method
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
-        customer_payment_method = StripePaymentDetails.objects.filter(
-            customer=customer
-        ).first()
+        # customer_payment_method = StripePaymentDetails.objects.filter(
+        #     customer=customer
+        # ).first()
 
         logger.info("Creating Stripe Payment Method...")
         stripe_payment_method = StripePaymentDetails(
@@ -56,10 +72,15 @@ def setup_payment_details(customer, payment_details, package_plan):
 def create_stripe_product(product):
     try:
         stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+        stripe_account = None
+        if not product.owner.is_staff:
+            stripe_account = product.owner.stripe_account_id
+
         # Create a Stripe Product
         stripe_product = stripe.Product.create(
             name=product.name,
             description=product.description,
+            stripe_account=stripe_account,
         )
         stripe_product_id = stripe_product["id"]
         product.stripe_product_id = stripe_product_id
@@ -70,6 +91,7 @@ def create_stripe_product(product):
             currency="usd",
             recurring={"interval": "month"},
             product=stripe_product_id,
+            stripe_account=stripe_account,
         )
         logger.info("chekc #3")
         stripe_price_id = stripe_price["id"]
@@ -87,13 +109,23 @@ def create_stripe_product(product):
 def update_stripe_product(product):
     try:
         stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+        stripe_account = None
+        if not product.owner.is_staff:
+            stripe_account = product.owner.stripe_account_id
+
         # Check the current value of the Stripe Price
-        stripe_price = stripe.Price.retrieve(product.stripe_price_id)
+        stripe_price = stripe.Price.retrieve(
+            product.stripe_price_id, stripe_account=stripe_account
+        )
 
         # if the stripe price is NOT the same as the product cost, create a new price
         if int(stripe_price["unit_amount"]) != int(product.cost * 100):
             # Deactivate the old price
-            stripe.Price.modify(product.stripe_price_id, active=False)
+            stripe.Price.modify(
+                product.stripe_price_id,
+                active=False,
+                stripe_account=stripe_account,
+            )
 
             # Update a Stripe Price
             stripe_price = stripe.Price.create(
@@ -101,6 +133,7 @@ def update_stripe_product(product):
                 currency="usd",
                 recurring={"interval": "month"},
                 product=product.stripe_product_id,
+                stripe_account=stripe_account,
             )
             stripe_price_id = stripe_price["id"]
             product.stripe_price_id = stripe_price_id
@@ -111,6 +144,7 @@ def update_stripe_product(product):
             product.stripe_product_id,
             name=product.name,
             description=product.description,
+            stripe_account=stripe_account,
         )
         return True
     except Exception as error:
@@ -139,9 +173,9 @@ def create_stripe_customer(customer):
 
     try:
         stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-        if not stripe.api_key:
-            logger.info("STRIPE_PRIVATE environment variable not set.")
-            return False
+        stripe_account = None
+        if not customer.owner.is_staff:
+            stripe_account = customer.stripe_account_id
 
         # Create a Stripe Customer
         name = f"{customer.first_name} {customer.last_name}"
@@ -149,6 +183,7 @@ def create_stripe_customer(customer):
             name=name,
             email=customer.email,
             phone=customer.phone,
+            stripe_account=stripe_account,
         )
         stripe_customer_id = stripe_customer["id"]
         if not stripe_customer_id:
@@ -157,6 +192,7 @@ def create_stripe_customer(customer):
 
         customer.stripe_customer_id = stripe_customer_id
         customer.save(should_sync_stripe=False)
+        create_stripe_account(customer)
         return True
     except Exception as error:
         logger.error(f"Error: {error}")
@@ -170,6 +206,10 @@ def create_stripe_customer(customer):
 def update_stripe_customer(customer):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
+        stripe_account = None
+        if not customer.owner.is_staff:
+            stripe_account = customer.stripe_account_id
+
         # Update a Stripe Customer
         name = f"{customer.first_name} {customer.last_name}"
         stripe.Customer.modify(
@@ -177,6 +217,7 @@ def update_stripe_customer(customer):
             name=name,
             email=customer.email,
             phone=customer.phone,
+            stripe_account=stripe_account,
         )
         return True
     except Exception as error:
@@ -201,9 +242,12 @@ def delete_stripe_customer(stripe_id):
 """ CREATE STRIPE PAYMENT METHOD """
 
 
-def create_stripe_payment_method(payment_details):
+def create_stripe_payment_method(payment_details, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
+        stripe_account = None
+        if not owner.is_staff:
+            stripe_account = payment_details.stripe_account_id
         # Create a Stripe Payment Method
         stripe_payment_method = stripe.PaymentMethod.create(
             type="card",
@@ -213,6 +257,7 @@ def create_stripe_payment_method(payment_details):
                 "exp_year": payment_details.expiry_year,
                 "cvc": payment_details.cvc,
             },
+            stripe_account=stripe_account,
         )
         stripe_card_id = stripe_payment_method["id"]
         payment_details.stripe_card_id = stripe_card_id
@@ -222,12 +267,14 @@ def create_stripe_payment_method(payment_details):
         stripe.PaymentMethod.attach(
             stripe_card_id,
             customer=payment_details.customer.stripe_customer_id,
+            stripe_account=stripe_account,
         )
 
         # Set the default payment method on the customer
         stripe.Customer.modify(
             payment_details.customer.stripe_customer_id,
             invoice_settings={"default_payment_method": stripe_card_id},
+            stripe_account=stripe_account,
         )
         return True
     except Exception as error:
@@ -238,9 +285,12 @@ def create_stripe_payment_method(payment_details):
 """ UPDATE STRIPE PAYMENT METHOD """
 
 
-def update_stripe_payment_method(payment_details):
+def update_stripe_payment_method(payment_details, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
+        stripe_account = None
+        if not owner.is_staff:
+            stripe_account = owner.stripe_account_id
         # Update a Stripe Payment Method
         stripe.PaymentMethod.modify(
             payment_details.stripe_payment_method_id,
@@ -250,6 +300,7 @@ def update_stripe_payment_method(payment_details):
                 "exp_year": payment_details.exp_year,
                 "cvc": payment_details.cvc,
             },
+            stripe_account=stripe_account,
         )
     except Exception as error:
         logger.error(f"\nError: {error}")
@@ -273,12 +324,18 @@ def delete_stripe_payment_method(stripe_id):
 """ CREATE STRIPE SUBSCRIPTION """
 
 
-def create_stripe_subscription(subscription):
+def create_stripe_subscription(subscription, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
-        # logger.info('Creating Stripe Subscription...')
-        # Get all packages associated with the package plan
+        stripe_account = None
+        if not owner.is_staff:
+            stripe_account = owner.stripe_account_id
+
+        # logger.info('Checking subscription: ', type(subscription))
         package_plan = subscription.package_plan
+        # logger.info("Stripe Subscription ID:", subscription.stripe_subscription_id)
+        # logger.info("Package Plan ID:", package_plan.id)
+        # Get all packages associated with the package plan
         service_packages = ServicePackage.objects.filter(package_plan=package_plan)
         # logger.info(f'Found {len(service_packages)} service packages for {package_plan.name}...')
         # Add the subscription item to the list of items for the subscription
@@ -291,6 +348,7 @@ def create_stripe_subscription(subscription):
                 currency="usd",
                 recurring={"interval": "month"},
                 product=service_package.package_template.stripe_product_id,
+                stripe_account=stripe_account,
             )
             service_package.stripe_subscription_item_price_id = (
                 new_stripe_subscription_item_price["id"]
@@ -309,6 +367,7 @@ def create_stripe_subscription(subscription):
             customer=customer.stripe_customer_id,
             items=items,
             collection_method="charge_automatically",
+            stripe_account=stripe_account,
             # off_session=off_session,
         )
         subscription_id = new_subscription["id"]
@@ -340,9 +399,12 @@ def create_stripe_subscription(subscription):
 """ UPDATE STRIPE SUBSCRIPTION """
 
 
-def update_stripe_subscription(subscription):
+def update_stripe_subscription(subscription, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-
+    stripe_account = None
+    if not owner.is_staff:
+        stripe_account = owner.stripe_account_id
+    
     def create_new_subscription_price(subscription, service_package):
         if not service_package.stripe_subscription_item_id:
             # logger.warning('No Stripe Subscription Item ID found...')
@@ -351,7 +413,8 @@ def update_stripe_subscription(subscription):
         # Check if the prices are the same
         if service_package.stripe_subscription_item_price_id:
             price = stripe.Price.retrieve(
-                service_package.stripe_subscription_item_price_id
+                service_package.stripe_subscription_item_price_id,
+                stripe_account=stripe_account,
             )
             current_price = price["unit_amount"]
             new_price = int(service_package.cost * 100)
@@ -369,8 +432,9 @@ def update_stripe_subscription(subscription):
             recurring={"interval": "month"},
             product=service_package.package_template.stripe_product_id,
             metadata={"subscription_id": subscription.id},
+            stripe_account=stripe_account,
         )
-        # logger.info(f'Created new price: {new_stripe_subscription_item_price}')
+        logger.info(f'Created new price: {new_stripe_subscription_item_price}')
 
         service_package.stripe_subscription_item_price_id = (
             new_stripe_subscription_item_price["id"]
@@ -384,12 +448,17 @@ def update_stripe_subscription(subscription):
                 service_package.stripe_subscription_item_id,
                 quantity=service_package.quantity,
                 price=new_stripe_subscription_item_price["id"],
+                stripe_account=stripe_account,
             )
             return subscription_item
 
     try:
         # Get the PackagePlan associated with the Subscription
         package_plan = subscription.package_plan
+        logger.debug("Package Plan ID:", package_plan.id)
+        logger.debug(type(subscription))
+        logger.debug("Stripe Subscription ID:", subscription.stripe_subscription_id)
+
 
         # Get the ServicePackages associated with the PackagePlan
         service_packages = ServicePackage.objects.filter(package_plan=package_plan)
@@ -418,11 +487,13 @@ def update_stripe_subscription(subscription):
                 modified_price = stripe.Price.modify(
                     old_price_id,
                     active=False,
+                    stripe_account=stripe_account,
                 )
 
         # logger.info('Getting all Stripe Subscription ...')
         stripe_items = stripe.SubscriptionItem.list(
-            subscription=subscription.stripe_subscription_id
+            subscription=subscription.stripe_subscription_id,
+            stripe_account=stripe_account,
         )
         stripe_ids = [item["id"] for item in stripe_items["data"]]
         # logger.info(f'stripe_ids: {stripe_ids}')
@@ -440,7 +511,8 @@ def update_stripe_subscription(subscription):
             if service_package.stripe_subscription_item_id:
                 if service_package.stripe_subscription_item_id not in stripe_ids:
                     stripe.SubscriptionItem.delete(
-                        service_package.stripe_subscription_item_id
+                        service_package.stripe_subscription_item_id,
+                        stripe_account=stripe_account,
                     )
             else:
                 # Create a Stripe Price
@@ -449,6 +521,7 @@ def update_stripe_subscription(subscription):
                     currency="usd",
                     recurring={"interval": "month"},
                     product=service_package.package_template.stripe_product_id,
+                    stripe_account=stripe_account,
                 )
                 service_package.stripe_subscription_item_price_id = (
                     new_stripe_subscription_item_price["id"]
@@ -461,6 +534,7 @@ def update_stripe_subscription(subscription):
                     subscription=subscription.stripe_subscription_id,
                     price=new_stripe_subscription_item_price["id"],
                     quantity=service_package.quantity,
+                    stripe_account=stripe_account,
                 )
 
                 service_package.stripe_subscription_item_id = subscription_item["id"]
@@ -471,7 +545,7 @@ def update_stripe_subscription(subscription):
         for stripe_id in stripe_ids:
             if stripe_id not in service_package_ids:
                 # logger.info(f'Deleting Stripe Subscription Item: {stripe_id}')
-                stripe.SubscriptionItem.delete(stripe_id)
+                stripe.SubscriptionItem.delete(stripe_id, stripe_account=stripe_account)
 
         return True
     except stripe.error.StripeError as e:
@@ -486,7 +560,6 @@ def delete_stripe_subscription(stripe_id):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
         # Delete the Stripe Subscription
-        logger.info("\n* DELETING STRIPE SUBSCRIPTION")
         stripe.Subscription.delete(stripe_id)
         return True
     except Exception as error:

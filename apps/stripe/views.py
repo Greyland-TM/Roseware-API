@@ -1,14 +1,10 @@
-import os
-import time
+import os, time, json, stripe
 from decimal import ROUND_HALF_UP, Decimal
-
 # import requests
-import stripe
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from apps.accounts.custom_auth import WebhookAuthentication
 from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.package_manager.models import (
@@ -17,20 +13,127 @@ from apps.package_manager.models import (
     ServicePackageTemplate,
 )
 from roseware.utils import make_logger
+from .models import StripeSubscription
 
 logger = make_logger(__name__, stream=True)
-
-
 stripe.api_key = os.environ.get("STRIPE_PRIVATE")
 
+class StripeSubscriptionCheckoutSession(APIView):
+    """ API view for creating a Stripe checkout session for a subscription """
 
-class PaymentDetailsView(APIView):
+    def get(self, request):
+        try:
+            if "pk" not in request.GET:
+                return Response({"ok": False, "message": "No package pk provided."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get the customer's stripe_customer_id
+            if "customer_pk" not in request.GET:
+                return Response({"ok": False, "message": "No customer pk provided."}, status=status.HTTP_400_BAD_REQUEST)
+            customer = Customer.objects.get(pk=request.GET["customer_pk"])
+
+            if "redirect_url" not in request.GET:
+                return Response({"ok": False, "message": "No redirect uri provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+            redirect_url = request.GET['redirect_url']
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{'price': package.stripe_price_id, 'quantity': 1}],
+                mode='subscription',
+                success_url=f'{redirect_url}?success=true',
+                cancel_url=redirect_url,
+                customer=customer.stripe_customer_id, 
+            )
+            url = checkout_session['url']
+            return Response(
+                {"ok": True, "message": "Successfully created checkout session.", "url": url}
+            )
+        except Exception as e:
+            print('Failed to get subscription link: ', e)
+            return Response({"ok": False, "message": "An error occurred."})
+
+class StripePaymentPageLink(APIView):
+    """ API view for getting the stripe payment page link """
+
+    def get(self, request):
+        try:
+            if "pk" not in request.GET:
+                return Response({"ok": False, "message": "No package pk provided."})
+            
+            frontend_url = os.environ.get("FRONTEND_URL")
+            redirect_url = f'{frontend_url}/dashboard/integrations/'
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
+            stripe_link = stripe.PaymentLink.create(
+                line_items=[{"price": package.stripe_price_id, "quantity": 1}], 
+                after_completion={"type": "redirect", "redirect": {"url": redirect_url}},
+            )
+            
+            return Response(
+                {"ok": True, "message": "Successfully created account link.", "url": stripe_link}
+            )
+        except Exception as e:
+            print(e)
+
+class GetStripeAccountLink(APIView):
+    """ API view for getting the stripe account link """
+
+    # permission_classes = [IsAuthenticated]
+    # authentication_classes = [WebhookAuthentication] 
+
+    def get(self, request):
+        try:
+            if "pk" not in request.GET:
+                return Response({"ok": False, "message": "No customer pk provided."})
+            
+            customer = Customer.objects.get(pk=request.GET["pk"])
+            frontend_url = os.environ.get("FRONTEND_URL")
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            response = stripe.AccountLink.create(
+                account=customer.stripe_account_id,
+                refresh_url=f"{frontend_url}/dashboard/integrations/",
+                return_url=f"{frontend_url}/dashboard/integrations?connected=true",
+                type="account_onboarding",
+            )
+            
+            customer.save(should_sync_pipedrive=False, should_sync_stripe=False)
+            return Response(
+                {"ok": True, "message": "Successfully created account link.", "url": response["url"]}
+            )
+
+        except Exception as e:
+            print('\nFailed to get account link: ', e)
+            return Response({"ok": False, "message": "An error occurred."})
+
+        
     def post(self, request):
-        logger.info("setting up payment details")
-        return Response(
-            status=status.HTTP_200_OK,
-            data={"ok": True, "message": "Payment details set up successfully."},
-        )
+        try:
+
+            # Check the customer's connection status in stripe
+            if "pk" not in request.query_params:
+                return Response({"ok": False, "message": "No customer pk provided."})
+
+            customer = Customer.objects.get(pk=request.query_params["pk"])
+            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+
+            # Retrieve the account details
+            account = stripe.Account.retrieve(customer.stripe_account_id)
+
+            # Check if the account is fully onboarded
+            if not len(account.requirements.currently_due) > 0:
+                customer.has_synced_stripe = True
+                customer.save(update_fields=["has_synced_stripe"], should_sync_pipedrive=False, should_sync_stripe=False)
+                return Response({"ok": True, "message": "Account successfully connected."})
+            else:
+                return Response({"ok": False, "message": "Account not fully connected."}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Customer.DoesNotExist:
+            return Response({"ok": False, "message": "Customer does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print('Failed with error: ', e)
+            return Response({"ok": False, "message": "An unexpected error occurred."}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class ProductCreateWebhook(APIView):
@@ -285,6 +388,7 @@ class CustomerCreateWebhook(APIView):
         customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
         logger.info(f"customer: {customer}")
         if customer:
+            customer.save(should_sync_pipedrive=True, should_sync_stripe=False)
             return Response(
                 status=status.HTTP_200_OK,
                 data={"ok": True, "message": "Customer Already Exists...."},
@@ -468,111 +572,117 @@ class SubscriptionCreateWebhook(APIView):
     def post(self, request, format=None):
         from apps.package_manager.utils import create_service_packages
 
-        logger.info("*** SubscriptionCreateWebhook ***")
-        # logger.info(request.data)
+        try:
+            # Check if we should stop processing stripe webhooks
+            stop_stripe_webhooks = Toggles.objects.filter(name="Toggles").first()
+            if stop_stripe_webhooks.stop_stripe_webhooks:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={"ok": True, "message": "Synced successfully."},
+                )
 
-        # Check if we should stop processing stripe webhooks
-        stop_stripe_webhooks = Toggles.objects.filter(name="Toggles").first()
-        if stop_stripe_webhooks.stop_stripe_webhooks:
-            return Response(
-                status=status.HTTP_200_OK,
-                data={"ok": True, "message": "Synced successfully."},
-            )
+            # # Check for any on going sync objects
+            ongoing_sync = OngoingSync.objects.filter(
+                type="package_plan", action="create"
+            ).first()
+            if ongoing_sync:
+                ongoing_sync.has_recieved_stripe_webhook = True
+                # logger.info('* Stopped processing stripe webhook because of ongoing sync.')
+                ongoing_sync.save()
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={"ok": True, "message": "Synced successfully."},
+                )
 
-        # # Check for any on going sync objects
-        ongoing_sync = OngoingSync.objects.filter(
-            type="package_plan", action="create"
-        ).first()
-        if ongoing_sync:
-            ongoing_sync.has_recieved_stripe_webhook = True
-            # logger.info('* Stopped processing stripe webhook because of ongoing sync.')
-            ongoing_sync.save()
-            return Response(
-                status=status.HTTP_200_OK,
-                data={"ok": True, "message": "Synced successfully."},
-            )
+            # Get the subscription id and customer id
+            subscription_id = request.data["data"]["object"]["id"]
+            customer_id = request.data["data"]["object"]["customer"]
+            items = request.data["data"]["object"]["items"]["data"]
+            product_details = []
+            subscription = request.data["data"]["object"]
+            items = subscription["items"]["data"]
 
-        # Get the subscription id and customer id
-        subscription_id = request.data["data"]["object"]["id"]
-        customer_id = request.data["data"]["object"]["customer"]
-        items = request.data["data"]["object"]["items"]["data"]
-        product_details = []
-        subscription = request.data["data"]["object"]
-        items = subscription["items"]["data"]
+            for item in items:
+                product_id = item["price"]["product"]
+                price_id = item["price"]["id"]
+                price_value = item["price"]["unit_amount"]
+                product = stripe.Product.retrieve(product_id)
+                product_name = product["name"]
+                product_details.append((product_id, price_id, price_value, product_name))
 
-        for item in items:
-            product_id = item["price"]["product"]
-            price_id = item["price"]["id"]
-            price_value = item["price"]["unit_amount"]
-            product = stripe.Product.retrieve(product_id)
-            product_name = product["name"]
-            product_details.append((product_id, price_id, price_value, product_name))
+            # Check if the customer exists
+            customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
+            if not customer:
+                customer = Customer.objects.filter(user=request.user).first()
+                if not customer:
+                    logger.info("*** Customer not found ***")
+                    return Response(
+                        status=status.HTTP_200_OK,
+                        data={"ok": True, "message": "Synced successfully."},
+                    )
 
-        # Check if the customer exists
-        customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
-        if not customer:
-            logger.info("*** Customer not found ***")
-            # TODO - Create a new customer
-            return Response(
-                status=status.HTTP_200_OK,
-                data={"ok": True, "message": "Synced successfully."},
-            )
+            # Check if the package plan already exists
+            package_plan = PackagePlan.objects.filter(
+                stripe_subscription_id=subscription_id
+            ).first()
+            if package_plan:
+                # logger.info('*** Package plan already exists ***')
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={"ok": True, "message": "Synced successfully."},
+                )
 
-        # Check if the package plan already exists
-        package_plan = PackagePlan.objects.filter(
-            stripe_subscription_id=subscription_id
-        ).first()
-        if package_plan:
-            # logger.info('*** Package plan already exists ***')
-            return Response(
-                status=status.HTTP_200_OK,
-                data={"ok": True, "message": "Synced successfully."},
-            )
-
-        package_plan = {
-            # 'billing_cycle': subscription['plan']['interval'],
-            "type": "subscription",
-            "status": subscription["status"],
-            "description": "New Customer Package Plan",
-            "stripe_subscription_id": subscription_id,
-            "packages": [],
-        }
-
-        for item in items:
-            product_id = item["price"]["product"]
-            price_id = item["price"]["id"]
-            price_value = item["price"]["unit_amount"] / 100
-            product = stripe.Product.retrieve(product_id)
-            product_name = product["name"]
-            requires_onboarding = False
-            # split product name in 2 parts, at the first space, and use the first part as the related_app and the second as the type
-            related_app = product_name.split(" ", 1)[0]
-            type = product_name.split(" ", 1)[1]
-
-            package = {
-                "stripe_product_id": product_id,
-                "stripe_price_id": price_id,
-                "name": product_name,
-                "price": price_value,
-                "related_app": related_app,
-                "type": type,
-                "requires_onboarding": requires_onboarding,
+            package_plan = {
+                "owner": request.user,
+                'billing_cycle': 'monthly',
+                "type": "subscription",
+                "status": subscription["status"],
+                "description": "New Customer Package Plan",
+                "stripe_subscription_id": subscription_id,
+                "packages": [],
             }
-            package_plan["packages"].append(package)
 
-            customer_pk = request.GET.get("pk", None)
-            if customer_pk:
-                owner = customer.user
-            else:
-                owner = customer.rep.user
+            for item in items:
+                product_id = item["price"]["product"]
+                price_id = item["price"]["id"]
+                price_value = item["price"]["unit_amount"] / 100
+                product = stripe.Product.retrieve(product_id)
+                product_name = product["name"]
+                requires_onboarding = False
+                # split product name in 2 parts, at the first space, and use the first part as the related_app and the second as the type
+                related_app = product_name.split(" ", 1)[0]
+                type = product_name.split(" ", 1)[1]
 
-            # Create the service packages
-            create_service_packages(customer, package_plan, True, False, owner=owner)
+                package = {
+                    "stripe_product_id": product_id,
+                    "stripe_price_id": price_id,
+                    "name": product_name,
+                    "price": price_value,
+                    "related_app": related_app,
+                    "type": type,
+                    "requires_onboarding": requires_onboarding,
+                    "status": "won",
+                }
+                package_plan["packages"].append(package)
 
-        return Response(
-            status=status.HTTP_200_OK,
-            data={"ok": True, "message": "Synced successfully."},
-        )
+                customer_pk = request.GET.get("pk", None)
+                if customer_pk:
+                    owner = customer.user
+                else:
+                    owner = customer.rep.user
+
+                # Create the service packages
+                create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
+
+            return Response(
+                status=status.HTTP_200_OK,
+                data={"ok": True, "message": "Synced successfully."},
+            )
+        except Exception as e:
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"ok": False, "message": "Failed to process request."},
+            )
 
 
 class SubscriptionSyncWebhook(APIView):

@@ -77,10 +77,19 @@ class OrganizationSerializer(serializers.ModelSerializer):
 #         fields = ("id", "username", "email", "first_name", "last_name", "password", "status")
 
 
+from rest_framework.exceptions import ValidationError
+
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "email", "password", "first_name", "last_name")
+
+    def validate(self, attrs):
+        if User.objects.filter(username=attrs['username']).exists():
+            raise ValidationError({'username': 'A user with that username already exists.'})
+        if User.objects.filter(email=attrs['email']).exists():
+            raise ValidationError({'email': 'A user with that email already exists.'})
+        return attrs
 
     def create(self, validated_data):
         try:
@@ -94,6 +103,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         except Exception as e:
             logger.error('Failed to make user: ', e)
         return user
+
 
 
 class LoginSerializer(serializers.Serializer):
