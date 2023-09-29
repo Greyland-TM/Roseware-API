@@ -15,7 +15,7 @@ if os.environ.get("DJANGO_ENV") == "development":
     rabbitmq_username = os.environ.get("RABBITMQ_USER")
     rabbitmq_password = os.environ.get("RABBITMQ_PASSWORD")
     CELERY_BROKER_URL = (
-        f"amqp://{rabbitmq_username}:{rabbitmq_password}@localhost:5672/myvhost"
+        f"amqp://{rabbitmq_username}:{rabbitmq_password}@localhost:5672/"
     )
 else:
     from roseware.settings.production import *
@@ -33,7 +33,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
 CORS_ORIGIN_ALLOW_ALL = True
-CSRF_TRUSTED_ORIGINS = [os.environ.get("BACKEND_URL")]
+# CSRF_TRUSTED_ORIGINS = [os.environ.get("BACKEND_URL")]
 
 
 # Application definition

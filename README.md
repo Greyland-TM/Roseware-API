@@ -256,3 +256,9 @@ Three log files are created in the logs directory:
     logs/debug.log: This file is used by Django for debug-level logging.
 
 # **\*\*\*\***\*\*\***\*\*\*\***
+
+_DOCKER_
+
+To get into the shell of the container and execute commands:
+    `docker exec -it roseware-api-web-1 /bin/bash`
+
