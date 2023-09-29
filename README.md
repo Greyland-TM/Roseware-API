@@ -219,7 +219,16 @@ MONDAY_PACKAGES_BOARD_ID=
 
 _DOCKER_
 
-To get into the shell of the container and execute commands:
-    `docker exec -it roseware-api-web-1 /bin/bash`
+To install the api, pull down the , run: `docker compose up --build`. It will run a lot of processes, so give it a second.
+
+You will need to get into PGAdmin and connect the db. Log in with the `PGADMIN_MAIL` and `PGADMIN_PW` you specified in your .env file.
+The server needs to be registered to the `DB_HOST` you specified in your .env file, and a database needs to be created with your `DB_NAME`.
+
+Then login into Rabbitmq's management dashboard with username and password `guest`.
+You will need to create a new user with the username and password you specified in your .env file and an admin tag.
+Create a new virtual host with the name `roseware` and grant your user access to it. 
+
+To get into the shell of a container and execute commands run: `docker exec -it {container name} {command}`
+For example, to create a superuser, run: `docker exec -it django python manage.py createsuperuser`
 
 # **\*\*\*\***\*\*\***\*\*\*\***
