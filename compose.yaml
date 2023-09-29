@@ -26,16 +26,53 @@ services:
     restart: always
 
   rabbitmq:
+    hostname: 'rabbitmq-dev'
     image: rabbitmq:management-alpine
     container_name: 'rabbitmq'
     ports:
         - 5672:5672
         - 15672:15672
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq/
 
-  # celery:
+  celery-worker:
+    container_name: "celery-worker"
+    build: .
+    image: python:latest
+    command: celery -A roseware worker
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres
 
+  celery-beat:
+    container_name: "celery-beat" 
+    build: .
+    image: python:latest
+    command: celery -A roseware worker -B
+    env_file:
+    - .env  
+    depends_on:
+      - rabbitmq
+      - postgres
 
-  web:
+  # celery-flower:
+  #   build: .
+  #   image: mher/flower
+  #   container_name: "celery-flower"
+  #   ports: 
+  #     - 5555:5555
+  #   env_file:
+  #      - .env
+  #   command: celery --broker=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq-dev:5672/roseware flower
+  #   depends_on:
+  #     - rabbitmq
+  #     - django
+  #     - postgres
+
+  django:
+    container_name: "django"
     env_file:
       - .env
     build: .
@@ -47,7 +84,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
-      # - celery
 
 volumes:
     db:
+    rabbitmq:

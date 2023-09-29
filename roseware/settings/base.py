@@ -7,6 +7,8 @@ from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
+load_dotenv()
+
 # Get the environment variables
 # Import development or production settings based on the environment
 if os.environ.get("DJANGO_ENV") == "development":
@@ -15,14 +17,13 @@ if os.environ.get("DJANGO_ENV") == "development":
     rabbitmq_username = os.environ.get("RABBITMQ_USER")
     rabbitmq_password = os.environ.get("RABBITMQ_PASSWORD")
     CELERY_BROKER_URL = (
-        f"amqp://{rabbitmq_username}:{rabbitmq_password}@localhost:5672/"
+        f"amqp://{rabbitmq_username}:{rabbitmq_password}@rabbitmq-dev:5672/roseware"
     )
 else:
     from roseware.settings.production import *
 
     CELERY_BROKER_URL = os.environ.get("CLOUDAMQP_URL")
 
-load_dotenv()
 
 # Set the project base directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
