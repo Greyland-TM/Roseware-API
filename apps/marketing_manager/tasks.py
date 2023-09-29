@@ -4,9 +4,9 @@ from .models import DailyContent, CustomerSelectedPlatform
 from apps.marketing_manager.utils import create_monthly_marketing_schedule, create_social_post
 from datetime import datetime
 from pytz import timezone
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 @app.task
 def generate_monthly_marketing_schedules():

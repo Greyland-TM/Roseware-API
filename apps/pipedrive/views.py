@@ -3,7 +3,7 @@ import json
 import time
 import stripe
 import requests
-from roseware.utils import make_logger
+import logging
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.views import APIView
@@ -30,7 +30,7 @@ from .utils import (
     set_pipedrive_keys,
 )
 
-logger = make_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class PipedriveOauth(APIView):
     """

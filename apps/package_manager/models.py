@@ -4,9 +4,9 @@ from django.db.models import (BooleanField, CharField, DateTimeField,
 from django.contrib.auth.models import User
 from apps.accounts.models import Customer
 import os
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 # Create your models here.
 
 class ServicePackageTemplate(models.Model):

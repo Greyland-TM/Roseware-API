@@ -4,12 +4,12 @@ from rest_framework.views import APIView
 # from knox.auth import TokenAuthentication
 from .models import BlogArticle
 from .serializers import BlogArticleSerializer
-from roseware.utils import make_logger
+import logging
 from apps.accounts.models import Customer, Employee
 from django.contrib.auth.models import User
 
 # Create your views here.
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 class BlogArticleView(APIView):

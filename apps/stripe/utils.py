@@ -11,9 +11,9 @@ from apps.package_manager.models import (
     ServicePackageTemplate,
 )
 from apps.stripe.models import StripePaymentDetails, StripeSubscription
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 """ CREATE STRIPE DETAILS """

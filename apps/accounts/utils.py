@@ -6,9 +6,9 @@ from apps.pipedrive.tasks import sync_pipedrive
 from apps.stripe.tasks import sync_stripe
 from django.contrib.auth.models import User
 from .models import OngoingSync
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 def update_or_create_ongoing_sync(type, action, should_sync_stripe, should_sync_pipedrive, sync_platform, owner):
     owner = User.objects.get(pk=owner)

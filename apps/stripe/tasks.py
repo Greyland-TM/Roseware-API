@@ -2,7 +2,7 @@ from roseware.celery import app
 from apps.accounts.models import Customer
 from apps.package_manager.models import ServicePackageTemplate, PackagePlan, ServicePackage
 from .models import StripePaymentDetails, StripeSubscription
-from roseware.utils import make_logger
+import logging
 from .utils import (
     create_stripe_customer,
     update_stripe_customer,
@@ -18,7 +18,7 @@ from .utils import (
     delete_stripe_subscription,
 )
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 @app.task(default_retry_delay=10, max_retries=3, autoretry_for=(Exception, ))

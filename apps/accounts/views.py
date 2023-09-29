@@ -20,9 +20,9 @@ from .serializers import (
     OrganizationSerializer,
     RegisterSerializer,
 )
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class LoginAPIView(generics.GenericAPIView):

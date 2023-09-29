@@ -1,23 +1,13 @@
-import os, datetime, logging
-from celery.signals import setup_logging
+import os, datetime
 from celery import Celery
 from celery.schedules import crontab
-from roseware.utils import make_logger
+from celery.utils.log import get_task_logger
 
-# logger = make_logger(__name__)
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "roseware.settings.base")
 app = Celery("roseware")
-app.config_from_object("django.conf:settings", namespace="CELERY")
-
-
-# Celery hijacks the root logger and configures it itself by default.
-# This prevents Celery from doing that.
-# @setup_logging.connect
-# def celery_setup_logging(*args, **kwargs):
-#     pass
-
+app.config_from_object("django.conf:settings", namespace="CELERY") 
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()

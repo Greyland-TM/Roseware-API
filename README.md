@@ -217,48 +217,9 @@ MONDAY_PACKAGES_BOARD_ID=
 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
-# Logging
-
-The logging system in this application is designed to offer flexibility and detailed tracking of events both during development and in production. It supports logging to both the console and files, allowing for easier debugging and monitoring.
-
-_Initialization_
-
-You can create a logger by importing from `roseware.utils` and then calling the `make_logger()` function. This function accepts several parameters:
-
-    name: A string representing the name of the logger instance. You can for the most part use `__name__` for this to name it after the module it's called in.
-    stream: A boolean value to determine whether to log to the console or not. Set to True to enable console logging (default is false).
-    file_name: The path to the log file for general logs (default is "logs/general.log").
-    log_level: The logging level to set (default is logging.DEBUG).
-    set_propagate: A boolean to determine whether to propagate the log to higher-level loggers (default is True).
-
-Example:
-
-`logger = make_logger(__name__, stream=True)`
-
-This will create a logger that logs to both the console and the specified files.
-
-_Logging Messages_
-
-You can log messages using the standard logging methods, such as logger.info, logger.debug, etc.
-
-`logger.debug("This is an debug message")`
-`logger.info("This is an info message")`
-`logger.warning("This is an warning message")`
-`logger.error("This is an error message")`
-`logger.critical("This is an critical message")`
-
-_Log Files_
-
-Three log files are created in the logs directory:
-
-    logs/general.log: This file contains general logs depending on the log level set.
-    logs/errors.log: This file specifically logs error-level messages.
-    logs/debug.log: This file is used by Django for debug-level logging.
-
-# **\*\*\*\***\*\*\***\*\*\*\***
-
 _DOCKER_
 
 To get into the shell of the container and execute commands:
     `docker exec -it roseware-api-web-1 /bin/bash`
 
+# **\*\*\*\***\*\*\***\*\*\*\***

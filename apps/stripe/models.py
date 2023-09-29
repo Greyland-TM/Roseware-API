@@ -1,8 +1,8 @@
 from django.db import models
-from roseware.utils import make_logger
+import logging
 from django.contrib.auth.models import User
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 # Create your models here.

@@ -32,14 +32,14 @@ services:
         - 5672:5672
         - 15672:15672
 
-  celery:
+  # celery:
 
 
   web:
     env_file:
       - .env
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: "./start.sh"
     volumes:
       - .:/app
     ports:
@@ -47,7 +47,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
-      - celery
+      # - celery
 
 volumes:
     db:

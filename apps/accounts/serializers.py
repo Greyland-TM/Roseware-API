@@ -2,9 +2,9 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from apps.accounts.models import Customer, Employee, Organization
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__)
+logger = logging.getLogger(__name__)
 
 User._meta.get_field("email")._unique = True
 
