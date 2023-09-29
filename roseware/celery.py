@@ -32,5 +32,5 @@ app.conf.beat_schedule = {
 ## Debug task ###
 @app.task
 def debug():
-   print("Debug")
+   print("Installation Successful!")
 
