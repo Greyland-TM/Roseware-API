@@ -1,8 +1,7 @@
-import os, datetime, logging
+import os, datetime
 from django.core import management
 from celery import Celery
 from celery.schedules import crontab
-from celery.signals import setup_logging
 
 
 
@@ -42,5 +41,5 @@ app.conf.beat_schedule = {
 ## Debug task ###
 @app.task
 def debug():
-    management.call_command("debug_test")
+   print("Debug")
 
