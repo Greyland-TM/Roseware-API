@@ -38,7 +38,7 @@ services:
   celery-worker:
     container_name: "celery-worker"
     build: .
-    command: "./start/celery/start-worker.sh"
+    command: [ "celery", "-A", "roseware", "worker" ]
     env_file:
       - .env
     depends_on:
@@ -48,7 +48,16 @@ services:
   celery-beat:
     container_name: "celery-beat"
     build: .
-    command: "./start/celery/start-beat.sh"
+    command:
+      [
+        "celery",
+        "-A",
+        "roseware",
+        "worker",
+        "-B",
+        "-l",
+        "ERROR"
+      ]
     env_file:
       - .env
     depends_on:
@@ -60,7 +69,7 @@ services:
     env_file:
       - .env
     build: .
-    command: "./start/start.sh"
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     volumes:
       - .:/app
     ports:
