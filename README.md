@@ -219,7 +219,7 @@ MONDAY_PACKAGES_BOARD_ID=
 
 _DOCKER_
 
-To install the api, pull down the , run: `docker compose up --build`. It will run a lot of processes, so give it a second.
+To install the api, run: `docker compose up --build`. 
 
 You will need to get into PGAdmin and connect the db. Log in with the `PGADMIN_MAIL` and `PGADMIN_PW` you specified in your .env file.
 The server needs to be registered to the `DB_HOST` you specified in your .env file, and a database needs to be created with your `DB_NAME`.
