@@ -1,12 +1,33 @@
 from django.apps import apps
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractBaseUser
 from django.db import models
 from django.db.models import CharField, DateTimeField
 from phonenumber_field.modelfields import PhoneNumberField
+from .managers import CustomUserManager
+
+class CustomUser(AbstractBaseUser):
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(unique=True)
+    username = models.CharField(max_length=40, unique=True)
+    full_name = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
+
+    USERNAME_FIELD = "username"
+    REQUIRED_FIELDS = ["full_name", "email"]
+
+    objects = CustomUserManager()
+
+    def __str__(self):
+        return self.username
+
+    class Meta:
+        verbose_name = "User"
 
 
 class Employee(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     first_name = CharField(default="Joe", max_length=100)
     last_name = CharField(default="Dierte", max_length=100)
     role = CharField(default="sales", max_length=100)
@@ -26,9 +47,9 @@ class Customer(models.Model):
     STATUS_CHOICE_FIELDS = (('lead', 'Lead'), ('customer', 'Customer'))
 
     # Fields
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     rep = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="customer_owner", null=True, blank=True)
+    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="customer_owner", null=True, blank=True)
     first_name = CharField(default="", max_length=100, null=False, blank=False)
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
@@ -100,7 +121,7 @@ class Customer(models.Model):
         return self.first_name
     
 class Organization(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organization_owner", null=True, blank=True)
+    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="organization_owner", null=True, blank=True)
     name = CharField(default="", max_length=100, null=False, blank=False)
     address = CharField(default="", max_length=100, null=False, blank=False)
     
@@ -124,7 +145,7 @@ class OngoingSync(models.Model):
     has_recieved_pipedrive_webhook = models.BooleanField(default=False)
     stop_stripe_webhook = models.BooleanField(default=False)
     has_recieved_stripe_webhook = models.BooleanField(default=False)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE ,null=True, blank=True)
+    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE ,null=True, blank=True)
 
     def save(self, *args, **kwargs):
 

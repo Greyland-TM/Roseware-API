@@ -1,6 +1,6 @@
 from django.db import models
 import logging
-from django.contrib.auth.models import User
+from apps.accounts.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class StripePaymentDetails(models.Model):
 
 
 class StripeSubscription(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscription_owner", null=True, blank=True)
+    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="subscription_owner", null=True, blank=True)
     customer = models.ForeignKey("accounts.Customer", on_delete=models.CASCADE)
     package_plan = models.ForeignKey(
         "package_manager.PackagePlan", on_delete=models.CASCADE, blank=True, null=True

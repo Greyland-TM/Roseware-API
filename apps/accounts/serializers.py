@@ -1,12 +1,11 @@
 from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
 from rest_framework import serializers
-from apps.accounts.models import Customer, Employee, Organization
+from apps.accounts.models import Customer, Employee, Organization, CustomUser
 import logging
 
 logger = logging.getLogger(__name__)
 
-User._meta.get_field("email")._unique = True
+# CustomUser._meta.get_field("email")._unique = True
 
 class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -81,19 +80,19 @@ from rest_framework.exceptions import ValidationError
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
+        model = CustomUser
         fields = ("id", "username", "email", "password", "first_name", "last_name")
 
     def validate(self, attrs):
-        if User.objects.filter(username=attrs['username']).exists():
+        if CustomUser.objects.filter(username=attrs['username']).exists():
             raise ValidationError({'username': 'A user with that username already exists.'})
-        if User.objects.filter(email=attrs['email']).exists():
+        if CustomUser.objects.filter(email=attrs['email']).exists():
             raise ValidationError({'email': 'A user with that email already exists.'})
         return attrs
 
     def create(self, validated_data):
         try:
-            user = User.objects.create_user(
+            user = CustomUser.objects.create_user(
                 username=validated_data["username"],
                 email=validated_data["email"],
                 password=validated_data["password"],

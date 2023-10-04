@@ -6,7 +6,6 @@ from .models import BlogArticle
 from .serializers import BlogArticleSerializer
 import logging
 from apps.accounts.models import Customer, Employee
-from django.contrib.auth.models import User
 
 # Create your views here.
 logger = logging.getLogger(__name__)
