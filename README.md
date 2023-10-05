@@ -232,3 +232,6 @@ To get into the shell of a container and execute commands run: `docker exec -it 
 For example, to create a superuser, run: `docker exec -it django python manage.py createsuperuser`
 
 # **\*\*\*\***\*\*\***\*\*\*\***
+
+## BACKUP DB COMMAND ##
+python manage.py dumpdata > backup.json

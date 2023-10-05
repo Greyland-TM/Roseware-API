@@ -81,11 +81,9 @@ from rest_framework.exceptions import ValidationError
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ("id", "username", "email", "password", "first_name", "last_name")
+        fields = ("id", "email", "password", "first_name", "last_name")
 
     def validate(self, attrs):
-        if CustomUser.objects.filter(username=attrs['username']).exists():
-            raise ValidationError({'username': 'A user with that username already exists.'})
         if CustomUser.objects.filter(email=attrs['email']).exists():
             raise ValidationError({'email': 'A user with that email already exists.'})
         return attrs
@@ -93,7 +91,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         try:
             user = CustomUser.objects.create_user(
-                username=validated_data["username"],
                 email=validated_data["email"],
                 password=validated_data["password"],
                 first_name=validated_data["first_name"],

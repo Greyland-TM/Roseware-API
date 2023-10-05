@@ -1,26 +1,27 @@
 from django.apps import apps
-from django.contrib.auth.models import AbstractBaseUser
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.db.models import CharField, DateTimeField
 from phonenumber_field.modelfields import PhoneNumberField
 from .managers import CustomUserManager
 
-class CustomUser(AbstractBaseUser):
+
+class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.AutoField(primary_key=True)
     email = models.EmailField(unique=True)
-    username = models.CharField(max_length=40, unique=True)
-    full_name = models.CharField(max_length=255)
+    first_name = models.CharField(max_length=255, default='')
+    last_name = models.CharField(max_length=255,  default='')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
 
-    USERNAME_FIELD = "username"
-    REQUIRED_FIELDS = ["full_name", "email"]
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     objects = CustomUserManager()
 
     def __str__(self):
-        return self.username
+        return self.email
 
     class Meta:
         verbose_name = "User"
@@ -31,7 +32,9 @@ class Employee(models.Model):
     first_name = CharField(default="Joe", max_length=100)
     last_name = CharField(default="Dierte", max_length=100)
     role = CharField(default="sales", max_length=100)
-    profile_picture = models.ImageField(upload_to='profile_picture/', null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to="profile_picture/", null=True, blank=True
+    )
     bio = CharField(default="", max_length=1000, null=True, blank=True)
     linkedin = CharField(default="", max_length=100, null=True, blank=True)
     github = CharField(default="", max_length=100, null=True, blank=True)
@@ -40,21 +43,30 @@ class Employee(models.Model):
     def __str__(self):
         return self.first_name
 
+
 class Customer(models.Model):
-    """ This model represents a single customer """
+    """This model represents a single customer"""
 
     # Choices
-    STATUS_CHOICE_FIELDS = (('lead', 'Lead'), ('customer', 'Customer'))
+    STATUS_CHOICE_FIELDS = (("lead", "Lead"), ("customer", "Customer"))
 
     # Fields
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     rep = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="customer_owner", null=True, blank=True)
+    owner = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="customer_owner",
+        null=True,
+        blank=True,
+    )
     first_name = CharField(default="", max_length=100, null=False, blank=False)
     last_name = CharField(default="", max_length=100, null=False, blank=False)
     email = CharField(default="", max_length=100, null=False, blank=False)
     phone = CharField(null=True, blank=True)
-    profile_picture = models.ImageField(upload_to='profilte_picture/', null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to="profilte_picture/", null=True, blank=True
+    )
     status = CharField(default="lead", max_length=100, choices=STATUS_CHOICE_FIELDS)
     onboarding_date = DateTimeField(null=True, blank=True)
     monday_id = CharField(default="", max_length=100, null=True, blank=True)
@@ -63,24 +75,48 @@ class Customer(models.Model):
     piprdrive_api_url = CharField(max_length=100, null=True, blank=True, default="")
     stripe_customer_id = CharField(default="", max_length=100, null=True, blank=True)
     stripe_account_id = CharField(default="", max_length=100, null=True, blank=True)
-    original_sync_from = CharField(max_length=100, null=True, blank=True, default="roseware")
-    last_synced_from = CharField(max_length=100, null=True, blank=True, default="roseware")
+    original_sync_from = CharField(
+        max_length=100, null=True, blank=True, default="roseware"
+    )
+    last_synced_from = CharField(
+        max_length=100, null=True, blank=True, default="roseware"
+    )
     has_synced_pipedrive = models.BooleanField(default=False)
     has_synced_stripe = models.BooleanField(default=False)
     beta_feature_flag = models.BooleanField(default=True)
-    
-    # Pipedrive api key / oauth token. Depends on the user making the request. Employee's should use the api keys.
-    PIPEDRIVE_PERSON_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_STRIPE_URL_KEY = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_TYPE_FIELD = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_PAYOUT_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_PROCESSING_FIELD = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_INVOICE_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
-    PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR = CharField(max_length=100, null=True, blank=True, default="")
 
-    def save(self, should_sync_stripe=True, should_sync_pipedrive=True, *args, **kwargs):
+    # Pipedrive api key / oauth token. Depends on the user making the request. Employee's should use the api keys.
+    PIPEDRIVE_PERSON_STRIPE_URL_KEY = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_PRODUCT_STRIPE_URL_KEY = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_STRIPE_URL_KEY = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_TYPE_FIELD = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_PAYOUT_SELECTOR = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_PROCESSING_FIELD = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_INVOICE_SELECTOR = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+    PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR = CharField(
+        max_length=100, null=True, blank=True, default=""
+    )
+
+    def save(
+        self, should_sync_stripe=True, should_sync_pipedrive=True, *args, **kwargs
+    ):
         from .utils import create_customer_sync, update_customer_sync
 
         is_new = self._state.adding
@@ -103,7 +139,9 @@ class Customer(models.Model):
                 self.user.save()
             update_customer_sync(self, should_sync_stripe, should_sync_pipedrive)
 
-    def delete(self, should_sync_stripe=True, should_sync_pipedrive=True, *args, **kwargs):
+    def delete(
+        self, should_sync_stripe=True, should_sync_pipedrive=True, *args, **kwargs
+    ):
         from .utils import delete_customer_sync
 
         # Get the pipedrive id before deleting the object
@@ -111,22 +149,32 @@ class Customer(models.Model):
         stripe_id = self.stripe_customer_id
         user = self.user
         owner_pk = self.owner.pk if self.owner else None
-        
+
         super(Customer, self).delete(*args, **kwargs)
         user.delete()
-        
-        delete_customer_sync(pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive, owner_pk)
+
+        delete_customer_sync(
+            pipedrive_id, stripe_id, should_sync_stripe, should_sync_pipedrive, owner_pk
+        )
 
     def __str__(self):
         return self.first_name
-    
+
+
 class Organization(models.Model):
-    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="organization_owner", null=True, blank=True)
+    owner = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="organization_owner",
+        null=True,
+        blank=True,
+    )
     name = CharField(default="", max_length=100, null=False, blank=False)
     address = CharField(default="", max_length=100, null=False, blank=False)
-    
+
     def __str__(self):
         return self.name
+
 
 class OngoingSync(models.Model):
     """
@@ -137,6 +185,7 @@ class OngoingSync(models.Model):
     It is created and deleted as the sync loop progresses, and is deleted when its done.
     If you ever find an OngoingSyng object in the database, then something went wrong with either the code or the environment.
     """
+
     type = CharField(default="", max_length=100, null=False, blank=False)
     created_at = DateTimeField(auto_now_add=True, null=True, blank=True)
     action = CharField(default="", max_length=100, null=False, blank=False)
@@ -145,10 +194,11 @@ class OngoingSync(models.Model):
     has_recieved_pipedrive_webhook = models.BooleanField(default=False)
     stop_stripe_webhook = models.BooleanField(default=False)
     has_recieved_stripe_webhook = models.BooleanField(default=False)
-    owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE ,null=True, blank=True)
+    owner = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, null=True, blank=True
+    )
 
     def save(self, *args, **kwargs):
-
         is_new = self._state.adding
         if is_new:
             self.has_recieved_pipedrive_webhook = self.stop_pipedrive_webhook
@@ -161,6 +211,7 @@ class OngoingSync(models.Model):
             return True
 
         return False
+
 
 class Toggles(models.Model):
     name = CharField(default="Toggles", max_length=100, null=False, blank=False)

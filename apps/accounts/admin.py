@@ -1,9 +1,6 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import AbstractBaseUser
 
-from .models import Customer, Employee, OngoingSync, Toggles
+from .models import CustomUser, Customer, Employee, OngoingSync, Toggles
 
 
 # class UserCreateForm(UserCreationForm):
@@ -24,6 +21,13 @@ from .models import Customer, Employee, OngoingSync, Toggles
 #             'fields': ('first_name', 'last_name', 'email', 'username', 'password1', 'password2', ),
 #         }),
 #     )
+
+@admin.register(CustomUser)
+class CustomUserAdmin(admin.ModelAdmin):
+    list_display = ['email']
+    
+    def __str__(self):
+        return self.email
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
