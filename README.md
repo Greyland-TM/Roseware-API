@@ -93,7 +93,7 @@ This way we can store our users access and refresh tokens (probably in aws secre
 - Next you need to create a admin user for yourself
 
   1: In your normal django terminal, navigated to the root of this app,
-  Run the command `pipenv shell && python manage.py createsuperuser`
+  Run the command `pipenv shell && python manage.py createcustomuser`
   2: Follow the text propts in the terminal.
   3: Use something you will remember easily.
 
@@ -105,7 +105,7 @@ This way we can store our users access and refresh tokens (probably in aws secre
 
   1: Run the command `pipenv shell && python manage.py runserver`
   2: In your browser go to `http://localhost:8000/admin/`
-  3: Login with your super user credentials from the last step.
+  3: Login with your user credentials from the last step.
 
 - Next you just need to set up the front end.
 
@@ -224,14 +224,11 @@ To install the api, run: `docker compose up --build`.
 You will need to get into PGAdmin and connect the db. Log in with the `PGADMIN_MAIL` and `PGADMIN_PW` you specified in your .env file.
 The server needs to be registered to the `DB_HOST` you specified in your .env file, and a database needs to be created with your `DB_NAME`.
 
-Then login into Rabbitmq's management dashboard with username and password `guest`.
+Then, login into Rabbitmq's management dashboard with username and password `guest`.
 You will need to create a new user with the username and password you specified in your .env file and an admin tag.
 Create a new virtual host with the name `roseware` and grant your user access to it. 
 
 To get into the shell of a container and execute commands run: `docker exec -it {container name} {command}`
-For example, to create a superuser, run: `docker exec -it django python manage.py createsuperuser`
+For example, to create a new admin user, run: `docker exec -it django python manage.py createcustomuser`
 
 # **\*\*\*\***\*\*\***\*\*\*\***
-
-## BACKUP DB COMMAND ##
-python manage.py dumpdata > backup.json
