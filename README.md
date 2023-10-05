@@ -219,14 +219,19 @@ MONDAY_PACKAGES_BOARD_ID=
 
 _DOCKER_
 
-To install the api, run: `docker compose up --build`. 
+To install the api, run: `docker compose up --build`.
 
 You will need to get into PGAdmin and connect the db. Log in with the `PGADMIN_MAIL` and `PGADMIN_PW` you specified in your .env file.
 The server needs to be registered to the `DB_HOST` you specified in your .env file, and a database needs to be created with your `DB_NAME`.
 
 Then, login into Rabbitmq's management dashboard with username and password `guest`.
 You will need to create a new user with the username and password you specified in your .env file and an admin tag.
-Create a new virtual host with the name `roseware` and grant your user access to it. 
+Create a new virtual host with the name `roseware` and grant your user access to it.
+
+Setting up your Ngrok tunnel can be done by obtaining an auth token from Ngrok and copying it into your .env file as `NGROK_AUTH={your-auth-token}`.
+After that, go to `localhost:4040` and copy the tunnel URL found there into your .env file as `BACKEND_URL={your-tunnel-url}`.
+You may need to restart django if it's running for this to work. Then you should be able to go to that URL on any browser and see django. 
+If you do not have a paid Ngrok plan, you will need to do this step everytime you boot the Ngrok container up as ngrok generates a random URL each time it starts.
 
 To get into the shell of a container and execute commands run: `docker exec -it {container name} {command}`
 For example, to create a new admin user, run: `docker exec -it django python manage.py createcustomuser`
