@@ -139,7 +139,7 @@ This way we can store our users access and refresh tokens (probably in aws secre
 # SETUP WEBHOOKS
 
 - You need to set up webhooks for all of the platform syncing to work.
-- To test the webhooks you can use ngrok. run `./ngrok http 8000` the copy the url and put in in the .env variable called `BACKEND_URL=url`
+- To test the webhooks you can use ngrok. run `ngrok http 8000 --host-header=rewerite` then copy the url and put in in the .env variable called `BACKEND_URL={url}`
 - Once that is set, you can run the commands `python manage.py create_pipedrive_webhooks` and `python manage.py create_stripe_webhooks`.
 - After that all the platforms should be synced and ready to go.
 

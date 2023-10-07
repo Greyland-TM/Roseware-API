@@ -69,17 +69,6 @@ services:
       - rabbitmq
       - postgres
 
-  # Ngrok
-  ngrok:
-    container_name: ngrok
-    image: wernight/ngrok:latest
-    depends_on:
-      - django
-    env_file:
-      - .env
-    ports:
-      - 4040:4040
-
   # Django Application Service
   django:
     container_name: "django"
