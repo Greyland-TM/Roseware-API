@@ -2,10 +2,10 @@ from .models import ServicePackage, ServicePackageTemplate, PackagePlan
 from apps.pipedrive.tasks import sync_pipedrive
 from apps.stripe.tasks import sync_stripe
 from apps.accounts.utils import update_or_create_ongoing_sync
-from roseware.utils import make_logger
+import logging
 from apps.stripe.models import StripeSubscription
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 # These functions are called from the .save method of the models.

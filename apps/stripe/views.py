@@ -12,10 +12,10 @@ from apps.package_manager.models import (
     ServicePackage,
     ServicePackageTemplate,
 )
-from roseware.utils import make_logger
+import logging
 from .models import StripeSubscription
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 stripe.api_key = os.environ.get("STRIPE_PRIVATE")
 
 class StripeSubscriptionCheckoutSession(APIView):

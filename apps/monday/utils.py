@@ -1,9 +1,9 @@
 import requests
 import json
 import os
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 # LEADS BOARD COLUMNS
 def get_leads_board_columns(customer, columns):

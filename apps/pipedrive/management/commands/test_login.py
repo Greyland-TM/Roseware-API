@@ -3,9 +3,9 @@ import os
 import requests
 from django.urls import get_resolver
 import hashlib
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):

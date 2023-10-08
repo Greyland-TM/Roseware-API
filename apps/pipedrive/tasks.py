@@ -1,9 +1,8 @@
-from apps.accounts.models import Customer
+
 from apps.package_manager.models import (PackagePlan, ServicePackage,
                                          ServicePackageTemplate)
 from roseware.celery import app
-from roseware.utils import make_logger
-from django.contrib.auth.models import User
+import logging
 from .utils import (create_pipedrive_customer, create_pipedrive_deal,
                     create_pipedrive_lead, create_pipedrive_package_template,
                     create_pipedrive_service_package,
@@ -15,12 +14,14 @@ from .utils import (create_pipedrive_customer, create_pipedrive_deal,
                     update_pipedrive_service_package)
 
 # set up the logger
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 @app.task(default_retry_delay=10, max_retries=3)
 def sync_pipedrive(pk, action, type, owner_pk):
+    from apps.accounts.models import Customer
+    from accounts.models import CustomUser
     # Get customer details
-    owner = User.objects.get(pk=owner_pk)
+    owner = CustomUser.objects.get(pk=owner_pk)
 
     try:
         if type == 'customer':

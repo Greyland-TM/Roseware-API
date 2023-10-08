@@ -3,7 +3,7 @@ import json
 import time
 import stripe
 import requests
-from roseware.utils import make_logger
+import logging
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.views import APIView
@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from apps.stripe.models import StripeSubscription
 from apps.stripe.utils import setup_payment_details
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.models import User
+from apps.accounts.models import CustomUser
 from apps.accounts.custom_auth import WebhookAuthentication
 from apps.accounts.models import Customer, Employee, OngoingSync, Toggles
 from apps.accounts.serializers import CustomerSerializer, RegisterSerializer
@@ -30,7 +30,7 @@ from .utils import (
     set_pipedrive_keys,
 )
 
-logger = make_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class PipedriveOauth(APIView):
     """
@@ -417,7 +417,7 @@ class CustomerCreateWebhook(APIView):
                 "password": password,
             }
             # Check if a user with the provided email already exists
-            if User.objects.filter(Q(email=email) | Q(username=email)).exists():
+            if CustomUser.objects.filter(Q(email=email) | Q(username=email)).exists():
                 return Response(
                     {"error": "A user with this email or username already exists."},
                     status=status.HTTP_200_OK,

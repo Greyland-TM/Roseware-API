@@ -5,9 +5,9 @@ import os
 import boto3
 import requests
 from apps.accounts.models import Customer
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 def get_pipedrive_oauth_tokens(customer_pk):
