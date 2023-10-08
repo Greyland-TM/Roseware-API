@@ -22,15 +22,15 @@ app.conf.beat_schedule = {
         "schedule": crontab(hour=17, minute=0),
         "args": (),
     },
-    "debug": {
-        "task": "roseware.celery.debug",
-        "schedule": datetime.timedelta(seconds=5),
-        "args": (),
-    },
+    # "debug": {
+    #     "task": "roseware.celery.debug",
+    #     "schedule": datetime.timedelta(seconds=5),
+    #     "args": (),
+    # },
 }
 
-## Debug task ###
-@app.task
-def debug():
-   print("Installation Successful!")
+# ## Debug task ###
+# @app.task
+# def debug():
+#    print("Installation Successful!")
 
