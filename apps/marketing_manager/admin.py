@@ -17,15 +17,15 @@ class MarketingScheduleAdmin(admin.ModelAdmin):
     inlines = [WeeklyTopicInline]
 
 class BlogArticleAdmin(admin.ModelAdmin):
-    list_display = ("title", "author_username", "created_at", "category")
+    list_display = ("title", "author_email", "created_at", "category")
     
-    def author_username(self, obj):
+    def author_email(self, obj):
         if obj.author:
-            return obj.author.username
+            return obj.author.email
         else:
             return ""
     
-    author_username.short_description = "Author"
+    author_email.short_description = "Author"
 
 admin.site.register(MarketingSchedule, MarketingScheduleAdmin)
 admin.site.register(WeeklyTopic, WeeklyTopicAdmin)

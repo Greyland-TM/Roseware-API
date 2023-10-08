@@ -410,7 +410,6 @@ class CustomerCreateWebhook(APIView):
             serializer_data = {
                 "first_name": first_name,
                 "last_name": last_name,
-                "username": email,
                 "email": email,
                 "password": password,
             }

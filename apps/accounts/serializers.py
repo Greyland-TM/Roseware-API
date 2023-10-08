@@ -57,24 +57,6 @@ class OrganizationSerializer(serializers.ModelSerializer):
     model = Organization
     fields = ("name",)
 
-# Commented out August 6, 2023
-# class UserSerializer(serializers.ModelSerializer):
-    
-#     status = serializers.SerializerMethodField("get_customer_status")
-    
-#     def get_customer_status(self, obj=None):
-#         from .models import Customer
-#         try:
-#             customer = Customer.objects.get(user=obj)
-#             return customer.status
-#         except Exception as error:
-#             logger.error(f'Error getting customer status: {error}')
-#             return None
-    
-#     class Meta:
-#         model = User
-#         fields = ("id", "username", "email", "first_name", "last_name", "password", "status")
-
 
 from rest_framework.exceptions import ValidationError
 
@@ -103,7 +85,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    email = serializers.CharField()
     password = serializers.CharField()
 
     def validate(self, data):

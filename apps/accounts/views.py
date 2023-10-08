@@ -121,9 +121,9 @@ class CreateCustomerAPIView(APIView):
                     user = existing_customer.user
                     user.first_name = request.data.get("first_name", None)
                     user.last_name = request.data.get("last_name", None)
-                    user.username = request.data.get(
+                    user.email = request.data.get(
                         "email", None
-                    )  # assuming the username is email
+                    )
                     user.set_password(password)
                     user.save()
 
@@ -144,7 +144,6 @@ class CreateCustomerAPIView(APIView):
             new_user_data = {
                 "first_name": request.data.get("first_name", None),
                 "last_name": request.data.get("last_name", None),
-                "username": request.data.get("email", None),
                 "email": request.data.get("email", None),
                 "phone": request.data.get("phone", None),
                 "password": password,
@@ -187,7 +186,7 @@ class CreateCustomerAPIView(APIView):
                 sync_pipedrive.delay(customer.pk, "create", "lead", owner.pk)
 
             login_seralizer = LoginSerializer(
-                data={"username": user.username, "password": password}
+                data={"email": user.email, "password": password}
             )
             login_seralizer.is_valid(raise_exception=True)
             user = login_seralizer.validated_data
@@ -202,9 +201,6 @@ class CreateCustomerAPIView(APIView):
         except Exception as error:
             email_error_message = ""
             errors = {
-                "username": [
-                    "ErrorDetail(string='A user with that username already exists.', code='unique')"
-                ],
                 "email": [
                     "ErrorDetail(string='user with this email address already exists.', code='unique')"
                 ],
