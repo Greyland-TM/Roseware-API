@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @app.task(default_retry_delay=10, max_retries=3)
 def sync_pipedrive(pk, action, type, owner_pk):
     from apps.accounts.models import Customer
-    from accounts.models import CustomUser
+    from apps.accounts.models import CustomUser
     # Get customer details
     owner = CustomUser.objects.get(pk=owner_pk)
 

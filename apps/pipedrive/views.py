@@ -412,14 +412,13 @@ class CustomerCreateWebhook(APIView):
             serializer_data = {
                 "first_name": first_name,
                 "last_name": last_name,
-                "username": email,
                 "email": email,
                 "password": password,
             }
             # Check if a user with the provided email already exists
-            if CustomUser.objects.filter(Q(email=email) | Q(username=email)).exists():
+            if CustomUser.objects.filter(email=email).exists():
                 return Response(
-                    {"error": "A user with this email or username already exists."},
+                    {"error": "A user with this email already exists."},
                     status=status.HTTP_200_OK,
                 )
 
