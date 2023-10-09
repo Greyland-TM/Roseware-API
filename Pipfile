@@ -35,6 +35,7 @@ django-aws-secrets-manager = "*"
 django-redis = "*"
 django-phonenumber-field = {extras = [ "phonenumberslite",], version = "*"}
 flower = "*"
+icecream = "*"
 
 [dev-packages]
 flake8 = "*"
