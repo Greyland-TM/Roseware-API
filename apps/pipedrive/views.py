@@ -647,6 +647,7 @@ class DealCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
+            print('\n\n^^checking for existing...')
             # Check if the package already exists
             existing_package = PackagePlan.objects.filter(
                 pipedrive_id=pipedrive_id
@@ -750,7 +751,7 @@ class DealSyncWebhook(APIView):
         try:
             # Simetimes the webhooks come in too fast,
             # so we need to wait a second to make sure the OnGoingSync object is created
-            time.sleep(1)
+            time.sleep(10)
 
             # Check if we should stop processing pipedrive webhooks
             stop_pipedrive_webhooks = Toggles.objects.filter(name="Toggles").first()
@@ -767,6 +768,7 @@ class DealSyncWebhook(APIView):
             if ongoing_sync:
                 ongoing_sync.has_recieved_pipedrive_webhook = True
                 ongoing_sync.save()
+                print('200 ongoing sync')
                 return Response(
                     status=status.HTTP_200_OK,
                     data={"ok": True, "message": "Synced successfully."},
@@ -794,6 +796,7 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
+            print('\n&&CHECK stripe id here: ', package_plan.stripe_subscription_id)
             print('\n* Getting the envcironment variables\n')
             # If the owner is a custopmer use oauth, else use api key
             headers = None
@@ -953,6 +956,7 @@ class DealSyncWebhook(APIView):
                         customer=package_plan.customer
                     ).first()
                     if stripe_subscription:
+                        print('200 existing stripe subscription')
                         subscription_pk = stripe_subscription.pk
                         sync_stripe.delay(subscription_pk, "update", "subscription")
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
@@ -972,11 +976,16 @@ class DealSyncWebhook(APIView):
                             package_plan=package_plan,
                             owner=owner,
                         )
+                        print('\n\n^^saving the stripe subscription')
+                        package_plan.save()
+                        print(stripe_subscription)
                         stripe_subscription.save()
                         package_plan.status = "won"
-                        package_plan.save()
+                        # import time
+                        # time.sleep(10)
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
                 else:
+                    print('eubscription lost')
                     package_plan.status = "lost"
                     package_plan.save()
                     return Response(status=status.HTTP_200_OK, data={"ok": True})

@@ -829,6 +829,7 @@ def create_pipedrive_deal(package_plan):
 
 
 def update_pipedrive_deal(package_plan):
+    print('packge plan stripe subscription: ', package_plan)
     try:
         # Get the pipedrive customer id
         pipedrive_customer_id = package_plan.customer.pipedrive_id

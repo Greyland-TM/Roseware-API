@@ -131,6 +131,8 @@ class PackagePlan(models.Model):
         from .utils import create_package_plan_sync, update_package_plan_sync
 
         is_new = self._state.adding
+        print(f'\n\nSAVING PACKAGE PLAN is_new: {is_new}, pk: {self.pk}')
+        print('stripe_subscription_id: ', self.stripe_subscription_id, '\n\n')
 
         super(PackagePlan, self).save(*args, **kwargs)
 

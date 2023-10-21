@@ -270,6 +270,7 @@ def create_service_packages(
         
         # Create a new Package Plan
         print('\n\n^_^GETTING OR CREATING PACKAGE PLAN 1')
+        print(package_details)
         package_plan, _ = PackagePlan.objects.get_or_create(
             stripe_subscription_id=subscription_id,
             defaults={

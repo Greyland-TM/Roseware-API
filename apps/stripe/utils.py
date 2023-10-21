@@ -327,7 +327,7 @@ def delete_stripe_payment_method(stripe_id):
 def create_stripe_subscription(subscription, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
-        print("\ngetting the stripe account")
+        print("\n\n*_*SAVED NEW STRIPE SUBSCRIPTION")
         # Get the stripe account
         stripe_account = None
         if not owner.is_staff:
@@ -377,12 +377,17 @@ def create_stripe_subscription(subscription, owner):
         )
         subscription_id = new_subscription["id"]
         
-        print('\n#saving the subscription now: ', subscription_id)
-        subscription.stripe_subscription_id = subscription_id
-        package_plan.stripe_subscription_id = subscription_id
-        print(f'\n\n^^saving the subscription now: {subscription_id}')
-        subscription.save(should_sync_stripe=False)
-        package_plan.save(should_sync_stripe=False, should_sync_pipedrive=True)
+        try:
+            print('\n#saving the subscription now: ', subscription_id)
+            subscription.stripe_subscription_id = subscription_id
+            package_plan.stripe_subscription_id = subscription_id
+            print(f'^^saving the subscription now: {subscription_id}, {package_plan.pk}')
+            subscription.save(should_sync_stripe=False)
+            package_plan.save(should_sync_stripe=False, should_sync_pipedrive=True)
+        except Exception as e:
+            print('\n\n0_0Failed to do something: ', e)
+
+        print('package placn stripe subscription id: ', package_plan.stripe_subscription_id)
 
         # save the subscription item id and price id to the ServicePackage
         data = new_subscription["items"]["data"]

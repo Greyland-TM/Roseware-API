@@ -29,7 +29,7 @@ def sync_stripe(pk, action, type):
             # *** Create New Stripe Customer ***
             if action == 'create':
                 customer = Customer.objects.filter(pk=pk).first()
-                was_customer_created = create_stripe_customer(customer, customer.owner)
+                was_customer_created = create_stripe_customer(customer)
                 if not was_customer_created:
                     logger.error('*** Failed to create customer in Stripe ***')
                 return was_customer_created
@@ -37,14 +37,14 @@ def sync_stripe(pk, action, type):
             # *** Update Existing Stripe Customer ***
             elif action == 'update':
                 customer = Customer.objects.filter(pk=pk).first()
-                was_customer_updated = update_stripe_customer(customer, customer.owner)
+                was_customer_updated = update_stripe_customer(customer)
                 if not was_customer_updated:
                     logger.error('*** Failed to update customer in Stripe ***')
                 return was_customer_updated
 
             # *** Delete Existing Stripe Customer ***
             elif action == 'delete':
-                was_customer_deleted = delete_stripe_customer(pk, customer.owner)
+                was_customer_deleted = delete_stripe_customer(pk)
                 if not was_customer_deleted:
                     logger.error('*** Failed to delete customer in Stripe ***')
                 return was_customer_deleted
