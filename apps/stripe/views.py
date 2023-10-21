@@ -638,7 +638,7 @@ class SubscriptionCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('package plan does not exist, creating a new one...')
+            print('package plan does not exist, setting up a new one...')
             package_plan = {
                 "owner": request.user,
                 'billing_cycle': 'monthly',
@@ -649,6 +649,7 @@ class SubscriptionCreateWebhook(APIView):
                 "packages": [],
             }
 
+            print('products: ', product_details)
             for item in items:
                 product_id = item["price"]["product"]
                 price_id = item["price"]["id"]
@@ -679,6 +680,7 @@ class SubscriptionCreateWebhook(APIView):
                     owner = customer.rep.user
 
                 # Create the service packages
+                print('\n\nO_Ocreating the service packages: ', package_plan)
                 create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
 
             return Response(
@@ -725,6 +727,10 @@ class SubscriptionSyncWebhook(APIView):
         # Get the subscription items frpm the request
         request_data = request.data["data"]["object"]
         subscription_items = request_data["items"]["data"]
+        # package_plan = PackagePlan.objects.filter(
+        #     stripe_subscription_id=request_data["id"]
+        # ).first()
+        # package_plan.delete(should_sync_pipedrive=True, should_sync_stripe=False)
 
         # Check each subscription item and update the quantity - More values can be added here later
         for item in subscription_items:

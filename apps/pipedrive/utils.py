@@ -807,6 +807,7 @@ def create_pipedrive_deal(package_plan):
 
         # Check the response data and update the packages pipedrive id
         data = response.json()
+        # print('\n\nChecking response data: ', data)
 
         deal_created = data["success"]
         if not deal_created:
@@ -816,8 +817,10 @@ def create_pipedrive_deal(package_plan):
 
         # Save the pipedrive id to the package plan
         pipedrive_deal_id = data["data"]["id"]
+        print('\n\nsaving the pipedrive id to the package plan: ', pipedrive_deal_id)
         package_plan.pipedrive_id = pipedrive_deal_id
         package_plan.save(should_sync_pipedrive=False)
+        print('\n\npackage plan pipedrive id: ', package_plan.pipedrive_id, package_plan.pk)
 
         return deal_created
     except Exception as e:
@@ -922,6 +925,7 @@ def delete_pipedrive_deal(deal_id, owner):
             return False
 
         return was_deleted
+        package_plan.delete()
     except Exception as e:
         logger.info(e)
         return False
@@ -933,7 +937,9 @@ def delete_pipedrive_deal(deal_id, owner):
 def create_pipedrive_service_package(service_package):
     try:
         # Delete the pipedrive product from a pipedrve deal
+        print('Creating service package not: ', service_package)
         if service_package.package_plan.owner.is_staff:
+            print('making the request with api key')
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
             pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
             url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{service_package.package_plan.pipedrive_id}/products?api_token={pipedrive_key}"
@@ -955,6 +961,7 @@ def create_pipedrive_service_package(service_package):
             response = requests.delete(url, json=body, headers=headers)
 
         data = response.json()
+        print('\nChecking response data: ', data, '\n')
         deal_created = data["success"]
 
         if not deal_created:

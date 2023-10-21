@@ -93,6 +93,7 @@ def sync_pipedrive(pk, action, type, owner_pk):
 
             # *** Delete Existing Pipedrive Deal ***
             elif action == 'delete':
+                print('(.)(.)delete deal now... ')
                 was_deleted = delete_pipedrive_deal(pk, owner)  # On delete, the pk is actually the pipedrive_id
                 if not was_deleted:
                     logger.error('*** Failed to delete deal in Pipedrive ***')

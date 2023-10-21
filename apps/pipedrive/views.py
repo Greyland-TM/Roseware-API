@@ -863,7 +863,7 @@ class DealSyncWebhook(APIView):
 
             print('checking if the package plan data is the same as the request data')
             deal_products = response.json()["data"]
-            if is_data_same(package_plan, request_data, deal_products):
+            if is_data_same(package_plan, request_data, deal_products):\
                 return Response(
                     status=status.HTTP_200_OK,
                     data={
@@ -977,10 +977,10 @@ class DealSyncWebhook(APIView):
                             owner=owner,
                         )
                         print('\n\n^^saving the stripe subscription')
+                        package_plan.status = "won"
                         package_plan.save()
                         print(stripe_subscription)
                         stripe_subscription.save()
-                        package_plan.status = "won"
                         # import time
                         # time.sleep(10)
                         return Response(status=status.HTTP_200_OK, data={"ok": True})

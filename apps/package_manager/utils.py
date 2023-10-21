@@ -160,6 +160,7 @@ def delete_package_plan_sync(
     # Delete the package plan
     if should_sync_pipedrive:
         logger.info("Deleting package plan in Pipedrive... (Check celery terminal)")
+        print('pipedrive_id: ', pipedrive_id,  ", owner: ", owner)
         sync_pipedrive.delay(pipedrive_id, "delete", "package_plan", owner)
     logger.info(f"should_sync_stripe value: {should_sync_stripe}")
     if should_sync_stripe:
@@ -271,6 +272,8 @@ def create_service_packages(
         # Create a new Package Plan
         print('\n\n^_^GETTING OR CREATING PACKAGE PLAN 1')
         print(package_details)
+        # import time
+        # time.sleep(5)
         package_plan, _ = PackagePlan.objects.get_or_create(
             stripe_subscription_id=subscription_id,
             defaults={
@@ -284,8 +287,9 @@ def create_service_packages(
             }
         )
         print('\n\n^_^get or create package plan ran: ', _, ', ', package_plan)
-        package_plan.stripe_subscription_id = subscription_id
-        package_plan.save(should_sync_pipedrive=False, should_sync_stripe=False)
+        print('HERE package plan pipedrive id: ', package_plan.pipedrive_id)
+        # package_plan.stripe_subscription_id = subscription_id
+        # package_plan.save(should_sync_pipedrive=False, should_sync_stripe=False)
         # rep = Employee.objects.all().first()
         # if customer_pk is not None:
         #     customer = Customer.objects.get(pk=customer_pk)
