@@ -178,10 +178,12 @@ class ProductCreateWebhook(APIView):
             type = split_related_app[1].lower()
 
             # Check for an existing package template
+            print('checking for an existing package template...')
             existing_package_template = ServicePackageTemplate.objects.filter(
                 stripe_product_id=product_id
             ).first()
             if existing_package_template:
+                print('existing package template found...')
                 existing_package_template.save(
                     should_sync_pipedrive=False, should_sync_stripe=False
                 )
@@ -190,6 +192,7 @@ class ProductCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
+            print('no existing package template found, creating a new one...')
             # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
             # The reason for this is so that later we can check if the customer is owned by the rep or the customer, and make the correct api requests.
             # If an employee is the owner then api keys will be used, if it is a customer then oauth will be used.
@@ -573,6 +576,7 @@ class SubscriptionCreateWebhook(APIView):
         from apps.package_manager.utils import create_service_packages
 
         try:
+            # time.sleep(3)
             # Check if we should stop processing stripe webhooks
             stop_stripe_webhooks = Toggles.objects.filter(name="Toggles").first()
             if stop_stripe_webhooks.stop_stripe_webhooks:
@@ -621,17 +625,20 @@ class SubscriptionCreateWebhook(APIView):
                         data={"ok": True, "message": "Synced successfully."},
                     )
 
+            print('checking if the package plan already exists...')
             # Check if the package plan already exists
             package_plan = PackagePlan.objects.filter(
                 stripe_subscription_id=subscription_id
             ).first()
             if package_plan:
+                print('package plan already exists...')
                 # logger.info('*** Package plan already exists ***')
                 return Response(
                     status=status.HTTP_200_OK,
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
+            print('package plan does not exist, creating a new one...')
             package_plan = {
                 "owner": request.user,
                 'billing_cycle': 'monthly',

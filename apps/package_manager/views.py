@@ -281,6 +281,7 @@ class PackagePlanView(APIView):
                 user = employee.user
                 
             # Create a new package plan with required fields
+            print('\n\n^_^CREATING PACKAGE PLAN 3')
             package_plan = PackagePlan(
                 owner=user,
                 customer=customer,
@@ -609,6 +610,7 @@ class ProfilePackage(APIView):
         customer_pk = request.data["customer_pk"]
         try:
             customer = Customer.objects.get(pk=customer_pk)
+            print('\n\n^_^CREATING PACKAGE PLAN 2')
             new_package_plan = PackagePlan(
                 owner=request.user,
                 customer=customer,
@@ -652,6 +654,7 @@ class ProfilePackage(APIView):
         customer_pk = request.data["customer_pk"]
         try:
             customer = Customer.objects.get(pk=customer_pk)
+            print('\n\n^_^CREATING PACKAGE PLAN 1')
             new_package_plan = PackagePlan(
                 owner=request.user,
                 customer=customer,

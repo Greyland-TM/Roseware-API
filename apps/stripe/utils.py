@@ -35,35 +35,35 @@ def create_stripe_account(customer):
         return False
 
 
-def setup_payment_details(customer, payment_details, package_plan):
-    # Create a Stripe Payment Method
-    stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-    try:
-        # customer_payment_method = StripePaymentDetails.objects.filter(
-        #     customer=customer
-        # ).first()
+# def setup_payment_details(customer, payment_details, package_plan):
+#     # Create a Stripe Payment Method
+#     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+#     try:
+#         # customer_payment_method = StripePaymentDetails.objects.filter(
+#         #     customer=customer
+#         # ).first()
 
-        logger.info("Creating Stripe Payment Method...")
-        stripe_payment_method = StripePaymentDetails(
-            customer=customer,
-            card_number=payment_details["card_number"],
-            expiry_month=payment_details["expiry_month"],
-            expiry_year=payment_details["expiry_year"],
-            cvc=payment_details["cvc"],
-        )
-        stripe_payment_method.save()
+#         logger.info("Creating Stripe Payment Method...")
+#         stripe_payment_method = StripePaymentDetails(
+#             customer=customer,
+#             card_number=payment_details["card_number"],
+#             expiry_month=payment_details["expiry_month"],
+#             expiry_year=payment_details["expiry_year"],
+#             cvc=payment_details["cvc"],
+#         )
+#         stripe_payment_method.save()
 
-        stripe_subscription = StripeSubscription(
-            customer=customer,
-            package_plan=package_plan,
-            # payment_details=stripe_payment_method
-        )
-        stripe_subscription.save()
-        return stripe_subscription
+#         stripe_subscription = StripeSubscription(
+#             customer=customer,
+#             package_plan=package_plan,
+#             # payment_details=stripe_payment_method
+#         )
+#         stripe_subscription.save()
+#         return stripe_subscription
 
-    except Exception as error:
-        logger.error(f"\nError: {error}")
-        return False
+#     except Exception as error:
+#         logger.error(f"\nError: {error}")
+#         return False
 
 
 """ CREATE STRIPE PRODUCT """
@@ -327,17 +327,21 @@ def delete_stripe_payment_method(stripe_id):
 def create_stripe_subscription(subscription, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
+        print("\ngetting the stripe account")
+        # Get the stripe account
         stripe_account = None
         if not owner.is_staff:
             stripe_account = owner.stripe_account_id
-
-        # logger.info('Checking subscription: ', type(subscription))
         package_plan = subscription.package_plan
-        # logger.info("Stripe Subscription ID:", subscription.stripe_subscription_id)
-        # logger.info("Package Plan ID:", package_plan.id)
+
+        print('getting the service packages')
         # Get all packages associated with the package plan
         service_packages = ServicePackage.objects.filter(package_plan=package_plan)
-        # logger.info(f'Found {len(service_packages)} service packages for {package_plan.name}...')
+
+        print('creating the stripe subscription price object')
+        # TODO - This is creating a new price for each subscription. This is not ideal.
+        # It is leadin to many prices being created in Stripe. 
+        
         # Add the subscription item to the list of items for the subscription
         customer = subscription.customer
         items = []
@@ -362,6 +366,7 @@ def create_stripe_subscription(subscription, owner):
                 }
             )
 
+        print('creating the stripe subscription')
         # Create a subscription on Stripe
         new_subscription = stripe.Subscription.create(
             customer=customer.stripe_customer_id,
@@ -371,9 +376,11 @@ def create_stripe_subscription(subscription, owner):
             # off_session=off_session,
         )
         subscription_id = new_subscription["id"]
-
+        
+        print('\n#saving the subscription now: ', subscription_id)
         subscription.stripe_subscription_id = subscription_id
         package_plan.stripe_subscription_id = subscription_id
+        print(f'\n\n^^saving the subscription now: {subscription_id}')
         subscription.save(should_sync_stripe=False)
         package_plan.save(should_sync_stripe=False, should_sync_pipedrive=True)
 

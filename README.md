@@ -236,4 +236,6 @@ If you do not have a paid Ngrok plan, you will need to do this step everytime yo
 To get into the shell of a container and execute commands run: `docker exec -it {container name} {command}`
 For example, to create a new admin user, run: `docker exec -it django python manage.py createcustomuser`
 
+Run `docker logs -f django` to tail the normal django terminal
+
 # **\*\*\*\***\*\*\***\*\*\*\***

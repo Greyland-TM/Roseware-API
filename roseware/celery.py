@@ -1,6 +1,7 @@
 import os, datetime
 from celery import Celery
 from celery.schedules import crontab
+from datetime import timedelta
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "roseware.settings.base")
@@ -20,6 +21,12 @@ app.conf.beat_schedule = {
     "create-daily-content": {
         "task": "apps.marketing_manager.tasks.create_daily_content",
         "schedule": crontab(hour=17, minute=0),
+        "args": (),
+    },
+    "ongoing_sync_failsafe_check": {
+        "task": "apps.accounts.tasks.ongoing_sync_failsafe_check",
+        # "schedule": crontab(minute="*/5"),
+        "schedule": timedelta(seconds=30),
         "args": (),
     },
     # "debug": {

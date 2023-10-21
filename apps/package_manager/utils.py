@@ -247,32 +247,44 @@ def create_service_packages(
     customer, package_details, should_sync_pipedrive, should_sync_stripe, subscription_id, owner
 ):
     try:
+        print("\n*Creating a New ServicePackage...")
+        print("checking owner: ", owner)
+        print("checking package_details: ", package_details["packages"])
         # Get the package template
         packages = package_details["packages"]
         for package in packages:
             related_app = package["related_app"].lower()
             type = package["type"].lower()
             package_template, _ = ServicePackageTemplate.objects.get_or_create(
-                owner=owner,
-                related_app=related_app,
-                type=type,
+                stripe_product_id=package.get("stripe_product_id", None),
                 defaults={
+                    "type": type,
+                    "owner": owner,
                     "requires_onboarding": True,
                     "name": package["name"],
                     "cost": package["price"],
                 },
             )
+            print('get or create ran: ', _, ', ', package_template)
 
+        
         # Create a new Package Plan
-        package_plan = PackagePlan.objects.create(
-            owner=owner,
-            customer=customer,
-            billing_cycle=package_details["billing_cycle"],
-            status=package_details["status"],
-            name=f"{customer.first_name} {customer.last_name} Deal",
-            description=package_details["description"],
-            stripe_subscription_id=package_details.get("stripe_subscription_id", None),
+        print('\n\n^_^GETTING OR CREATING PACKAGE PLAN 1')
+        package_plan, _ = PackagePlan.objects.get_or_create(
+            stripe_subscription_id=subscription_id,
+            defaults={
+                "owner": owner,
+                "customer": customer,
+                "billing_cycle": package_details["billing_cycle"],
+                "status": package_details["status"],
+                "name": f"{customer.first_name} {customer.last_name} Deal",
+                "description": package_details["description"],
+                "stripe_subscription_id": package_details.get("stripe_subscription_id", None),
+            }
         )
+        print('\n\n^_^get or create package plan ran: ', _, ', ', package_plan)
+        package_plan.stripe_subscription_id = subscription_id
+        package_plan.save(should_sync_pipedrive=False, should_sync_stripe=False)
         # rep = Employee.objects.all().first()
         # if customer_pk is not None:
         #     customer = Customer.objects.get(pk=customer_pk)

@@ -11,7 +11,7 @@ from knox.auth import TokenAuthentication
 from decimal import ROUND_HALF_UP, Decimal
 from rest_framework.response import Response
 from apps.stripe.models import StripeSubscription
-from apps.stripe.utils import setup_payment_details
+# from apps.stripe.utils import setup_payment_details
 from rest_framework.permissions import IsAuthenticated
 from apps.accounts.models import CustomUser
 from apps.accounts.custom_auth import WebhookAuthentication
@@ -666,6 +666,7 @@ class DealCreateWebhook(APIView):
                 owner = employee.user
 
             # Create the package
+            print('\n\n^^Creating the package...')
             service_package = PackagePlan(
                 owner=owner,
                 pipedrive_id=pipedrive_id,
@@ -793,6 +794,7 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
+            print('\n* Getting the envcironment variables\n')
             # If the owner is a custopmer use oauth, else use api key
             headers = None
             if package_plan.owner.is_staff:
@@ -828,9 +830,13 @@ class DealSyncWebhook(APIView):
                 headers = {
                     "Authorization": f'Bearer {tokens["access_token"]}',
                 }
-
+            
+            # TODO - I need to check if the processing and payment selection fields are set up in pipedrive and that they match the ones in the environment variables
+            # And make sure that those are getting the inputed selection.
+            print('getting the pipedrive deal data')
             # Update package plan details
             package_plan.name = request_data["title"]
+            print()
             payment_selection = request_data[f"{payment_field_key}"]
             processing_selection = request_data[f"{processing_field_key}"]
             if payment_selection == None or processing_selection == None:
@@ -841,6 +847,7 @@ class DealSyncWebhook(APIView):
                 payment_selection.lower() if payment_selection is not None else None
             )
 
+            print('Setting up request url')
             # Get the products from the deal and return if there are no changes
             if not headers:
                 url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}/products?api_token={pipedrive_key}"
@@ -851,6 +858,7 @@ class DealSyncWebhook(APIView):
                 )
                 response = requests.get(url, headers=headers)
 
+            print('checking if the package plan data is the same as the request data')
             deal_products = response.json()["data"]
             if is_data_same(package_plan, request_data, deal_products):
                 return Response(
@@ -861,6 +869,7 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
+            print('deleting all service packages that are not in the pipedrive products list')
             # Delete all ServicePackage objects that are not in the products list
             service_package_products = ServicePackage.objects.filter(
                 package_plan=package_plan
@@ -874,29 +883,34 @@ class DealSyncWebhook(APIView):
                     ):
                         service_package_product.delete(should_sync_pipedrive=False)
 
+            print('adding all pipedrive products that are not saved to the service package')
             # Add all products to the ServicePackage
-            for product in deal_products:
-                pipedrive_product_attachment_id = product["id"]
-                service_package = ServicePackage.objects.filter(
-                    pipedrive_product_attachment_id=pipedrive_product_attachment_id
-                ).first()
-                if not service_package:
-                    product_id = product["product_id"]
-                    package_template = ServicePackageTemplate.objects.filter(
-                        pipedrive_id=product_id
+            try:
+                for product in deal_products:
+                    pipedrive_product_attachment_id = product["id"]
+                    service_package = ServicePackage.objects.filter(
+                        pipedrive_product_attachment_id=pipedrive_product_attachment_id
                     ).first()
-                    service_package = ServicePackage(
-                        pipedrive_product_attachment_id=pipedrive_product_attachment_id,
-                        package_plan=package_plan,
-                        customer=package_plan.customer,
-                        package_template=package_template,
-                        cost=product["item_price"],
-                        quantity=product["quantity"],
-                    )
-                    service_package.save(
-                        should_sync_pipedrive=False, should_sync_stripe=True
-                    )
+                    if not service_package:
+                        product_id = product["product_id"]
+                        package_template = ServicePackageTemplate.objects.filter(
+                            pipedrive_id=product_id
+                        ).first()
+                        service_package = ServicePackage(
+                            pipedrive_product_attachment_id=pipedrive_product_attachment_id,
+                            package_plan=package_plan,
+                            customer=package_plan.customer,
+                            package_template=package_template,
+                            cost=product["item_price"],
+                            quantity=product["quantity"],
+                        )
+                        service_package.save(
+                            should_sync_pipedrive=False, should_sync_stripe=True
+                        )
+            except Exception as error:
+                print('Failed at "# Add all products to the ServicePackage"', error)
 
+            print('checking if the customer has a payment method setup in stripe')
             # Check if the customer has a payment method setup in Stripe
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             customer_id = package_plan.customer.stripe_customer_id
@@ -909,7 +923,7 @@ class DealSyncWebhook(APIView):
                         should_sync_pipedrive=True, should_sync_stripe=False
                     )
                     return Response(
-                        status=status.HTTP_400_OK,
+                        status=status.HTTP_400_BAD_REQUEST,
                         data={
                             "ok": True,
                             "message": "No payment method found for this customer.",
@@ -924,6 +938,8 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
+            print('processing the stripe integration')
+            print(payment_selection, processing_selection)
             # Set up the Stripe Subscription or Payout
             # This is looking at the payment selection and processing selection to determine what to do
             # This should create either a subscription or a paymanet intent, and then either send an invoice or process the payment
@@ -941,9 +957,20 @@ class DealSyncWebhook(APIView):
                         sync_stripe.delay(subscription_pk, "update", "subscription")
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
                     else:
+                        # Determine the owner of the subscription.
+                        # If the request is 
+                        customer_pk = request.GET.get("pk")
+                        if customer_pk is not None:
+                            customer = Customer.objects.get(pk=customer_pk)
+                            owner = customer.user
+                        else:
+                            employee = Employee.objects.all().first()
+                            owner = employee.user
+
                         stripe_subscription = StripeSubscription(
                             customer=package_plan.customer,
                             package_plan=package_plan,
+                            owner=owner,
                         )
                         stripe_subscription.save()
                         package_plan.status = "won"
@@ -969,7 +996,7 @@ class DealSyncWebhook(APIView):
                 package_plan.status = "lost"
                 package_plan.save(should_sync_pipedrive=True, should_sync_stripe=False)
                 return Response(
-                    status=status.HTTP_400_OK,
+                    status=status.HTTP_400_BAD_REQUEST,
                     data={"ok": False, "message": "Unknown deal type."},
                 )
 
