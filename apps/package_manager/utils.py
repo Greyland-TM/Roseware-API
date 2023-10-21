@@ -229,7 +229,7 @@ def update_service_package_sync(
 
 
 def delete_service_package_sync(
-    pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner
+    pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner, attachemt_id=None
 ):
     # Delete the service package
     logger.info("Deleting service package... ")
@@ -238,7 +238,11 @@ def delete_service_package_sync(
         sync_stripe.delay(stripe_id, "update", "subscription")
     if should_sync_pipedrive:
         logger.info("Deleting service package in Pipedrive... (Check celery terminal)")
-        sync_pipedrive.delay(pipedrive_id, "delete", "package", owner)
+        try:
+            print('pipedrive_id: ', pipedrive_id,  ", owner: ", owner)
+            sync_pipedrive.delay(pipedrive_id, "delete", "service_package", owner, attachemt_id=attachemt_id)
+        except Exception as e:
+            print(f'Error deleting service package in Pipedrive: {e}')
 
 
 # TODO - Create a new package for a customer.
@@ -325,7 +329,7 @@ def create_service_packages(
                 next_scheduled=None,
                 action=package_template.action,
                 requires_onboarding=package_template.requires_onboarding,
-                stripe_subscription_item_id=package.get("stripe_product_id", None),
+                stripe_subscription_item_id=package.get("stripe_subscription_item_id", None),
                 stripe_subscription_item_price_id=package.get("stripe_price_id", None),
             )
 

@@ -651,7 +651,7 @@ class SubscriptionCreateWebhook(APIView):
 
             print('products: ', product_details)
             for item in items:
-                product_id = item["price"]["product"]
+                stripe_subscription_item_id = item["id"]
                 price_id = item["price"]["id"]
                 price_value = item["price"]["unit_amount"] / 100
                 product = stripe.Product.retrieve(product_id)
@@ -662,7 +662,7 @@ class SubscriptionCreateWebhook(APIView):
                 type = product_name.split(" ", 1)[1]
 
                 package = {
-                    "stripe_product_id": product_id,
+                    "stripe_subscription_item_id": stripe_subscription_item_id,
                     "stripe_price_id": price_id,
                     "name": product_name,
                     "price": price_value,
@@ -733,15 +733,60 @@ class SubscriptionSyncWebhook(APIView):
         # package_plan.delete(should_sync_pipedrive=True, should_sync_stripe=False)
 
         # Check each subscription item and update the quantity - More values can be added here later
-        for item in subscription_items:
-            service_package = ServicePackage.objects.filter(
-                stripe_subscription_item_id=item["id"]
-            ).first()
-            if service_package:
-                service_package.quantity = item["quantity"]
-                service_package.save(
-                    should_sync_pipedrive=True, should_sync_stripe=False
+        # print('\n\nU_Uupdating the subscription items: ', subscription_items)
+        try:
+            customer_id = request.data["data"]["object"]["customer"]
+            customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
+            print('\ncustomer: ', customer)
+            # Print the item["subscription"] for each itme in subscription_items
+            
+            for item in subscription_items:
+                print('running get or create: ', item["id"])
+                stripe_subscription_item_id = item["subscription"]
+                package_plan = PackagePlan.objects.filter(
+                    stripe_subscription_id=stripe_subscription_item_id
+                ).first()
+                package_template = ServicePackageTemplate.objects.filter(
+                    stripe_product_id=item["price"]["product"]
+                ).first()
+                service_package, created = ServicePackage.objects.get_or_create(
+                    stripe_subscription_item_id=item["id"],
+                    defaults={
+                        'quantity': item["quantity"], 
+                        'cost': float(int(item["price"]["unit_amount_decimal"]) / 100),
+                        "customer": customer, 
+                        "stripe_subscription_item_id": item["id"],
+                        "stripe_subscription_item_price_id": item["price"]["id"],
+                        "package_plan": package_plan,
+                        "package_template": package_template,
+                    }
                 )
+                print('created: ', created)
+                if not created:
+                    print(float(int(item["price"]["unit_amount_decimal"]) / 100))
+                    service_package.quantity = item["quantity"]
+                    service_package.cost = float(int(item["price"]["unit_amount_decimal"]) / 100)
+                    service_package.save(
+                        should_sync_pipedrive=True, should_sync_stripe=False
+                    )
+
+            service_packages = ServicePackage.objects.filter(
+                package_plan=package_plan
+            )
+            print('\n\nservice packages: ', service_packages)
+
+            # Delete all service packages that are not in the subscription items
+            for service_package in service_packages:
+                if service_package.stripe_subscription_item_id not in [
+                    item["id"] for item in subscription_items
+                ]:
+                    print('deleting service package...')
+                    service_package.delete(
+                        should_sync_pipedrive=True, should_sync_stripe=False
+                    )
+
+        except Exception as e:
+            print('Failed to update the subscription items: ', e)
 
         return Response(
             status=status.HTTP_200_OK,

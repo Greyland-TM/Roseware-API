@@ -204,9 +204,10 @@ def create_stripe_customer(customer):
 
 
 def update_stripe_customer(customer):
+    print("\n\n*_*UPDATING STRIPE CUSTOMER")
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
-        stripe_account = None
+        stripe_account = None 
         if not customer.owner.is_staff:
             stripe_account = customer.stripe_account_id
 

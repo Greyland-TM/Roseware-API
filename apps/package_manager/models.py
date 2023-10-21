@@ -243,6 +243,8 @@ class ServicePackage(models.Model):
 
         is_new = self._state.adding
 
+        print(f'SAVING SERVICE PACKAGE is_new: {is_new}, pipedrive_product_attachment_id: {self.pipedrive_product_attachment_id}')
+
         super(ServicePackage, self).save(*args, **kwargs)
 
         if is_new:
@@ -265,19 +267,22 @@ class ServicePackage(models.Model):
     ):
         from .utils import delete_service_package_sync
         
-
-        piperive_id = self.pipedrive_product_attachment_id
+        
+        attachment_id = self.pipedrive_product_attachment_id
+        piperive_id = self.package_plan.pipedrive_id
         stripe_subscription_item_id = self.package_plan.stripe_subscription_id
         owner = self.package_plan.owner
         customer = self.customer
         title = self.package_template.name
         super(ServicePackage, self).delete(*args, **kwargs)
+        print('\n\nDELETING SERVICE PACKAGE')
         delete_service_package_sync(
             piperive_id,
             stripe_subscription_item_id,
             should_sync_pipedrive,
             should_sync_stripe,
             owner.pk,
+            attachment_id
         )
 
         # If the pipedrive-stripe sync was deleted set the customer's sync status to false

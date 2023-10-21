@@ -925,6 +925,9 @@ class DealSyncWebhook(APIView):
                     package_plan.save(
                         should_sync_pipedrive=True, should_sync_stripe=False
                     )
+                    # TODO - If this response failes here it's because the customer did not have a payment method in stripe,
+                    # but the user tried to create a subscription in pipedrive. We need to handle this case better. Right now 
+                    # it lets the deal to 'lost' so that it turns red in pipedrive. But we should add a message somehow. Maybe in pipedrive notes?
                     return Response(
                         status=status.HTTP_400_BAD_REQUEST,
                         data={
@@ -1002,6 +1005,7 @@ class DealSyncWebhook(APIView):
                     logger.info("** Creating Stripe Payout. Sending invoice...")
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
             else:
+                print('unknown deal type, setting to lost....')
                 package_plan.status = "lost"
                 package_plan.save(should_sync_pipedrive=True, should_sync_stripe=False)
                 return Response(

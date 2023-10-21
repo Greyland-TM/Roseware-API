@@ -238,4 +238,6 @@ For example, to create a new admin user, run: `docker exec -it django python man
 
 Run `docker logs -f django` to tail the normal django terminal
 
+For webhooks run`docker exec -it django python manage.py create_pipedrive_webhooks` & `docker exec -it django python manage.py create_stripe_webhooks`
+
 # **\*\*\*\***\*\*\***\*\*\*\***

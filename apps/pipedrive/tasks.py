@@ -17,11 +17,12 @@ from .utils import (create_pipedrive_customer, create_pipedrive_deal,
 logger = logging.getLogger(__name__)
 
 @app.task(default_retry_delay=10, max_retries=3)
-def sync_pipedrive(pk, action, type, owner_pk):
+def sync_pipedrive(pk, action, type, owner_pk, attachment_id=None):
     from apps.accounts.models import Customer
     from apps.accounts.models import CustomUser
     # Get customer details
     owner = CustomUser.objects.get(pk=owner_pk)
+    print(f'Checking data: pk: {pk}, action: {action}, type: {type}, owner: {owner}')
 
     try:
         if type == 'customer':
@@ -102,23 +103,25 @@ def sync_pipedrive(pk, action, type, owner_pk):
         elif type == 'service_package':
             service_package = ServicePackage.objects.filter(pk=pk).first()
 
-            # *** Create New Pipedrive Deal ***
+            # *** Create New Pipedrive Product in Deal ***
             if action == 'create':
                 was_deal_created = create_pipedrive_service_package(service_package)
                 if not was_deal_created:
-                    logger.error('*** Failed to attach package to Pipedrive deal ***')
+                    logger.error('*** Failed to attach package to Pipedrive Product from deal ***')
                 return was_deal_created
 
-            # *** Update Existing Pipedrive Deal ***
+            # *** Update Existing Pipedrive Product in Deal ***
             elif action == 'update':
                 was_deal_updated = update_pipedrive_service_package(service_package)
                 if not was_deal_updated:
-                    logger.error('*** Failed to update deal (service_package) in Pipedrive ***')
+                    logger.error('*** Failed to update deal service_package in Pipedrive ***')
                 return was_deal_updated
 
-            # *** Delete Existing Pipedrive Deal ***
+            # *** Delete Existing Pipedrive Product from Deal ***
             elif action == 'delete':
-                was_deleted = delete_pipedrive_service_package(service_package, owner)
+                print('Calling delete_pipedrive_service_package')
+                print(f'service_package: {service_package}, owner: {owner}')
+                was_deleted = delete_pipedrive_service_package(service_package, attachment_id, owner)
 
         elif type == 'lead':
             customer_qs = Customer.objects.filter(pk=pk)
