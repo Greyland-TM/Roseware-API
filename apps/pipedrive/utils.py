@@ -939,7 +939,7 @@ def create_pipedrive_service_package(service_package):
         # Delete the pipedrive product from a pipedrve deal
         print('Creating service package not: ', service_package)
         if service_package.package_plan.owner.is_staff:
-            print('making the request with api key')
+            print('making the request with api key - create_pipedrive_service_package')
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
             pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
             url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{service_package.package_plan.pipedrive_id}/products?api_token={pipedrive_key}"
@@ -988,19 +988,26 @@ def update_pipedrive_service_package(service_package):
     try:
         print('\n\nUPDATING PIPEDRIVE SERVICE PACKAGE\n\n')
         # Add a product to a pipedrive deal
-        print('Updating pipedrive service package: ', service_package, ' service package owner: ', service_package.package_plan.owner, 'package plan: ', service_package.package_plan)
+        print(f'updating pipedrive service package: {service_package}, service package owner: {service_package.package_plan.owner}, package plan: {service_package.package_plan}, attachment id: {service_package.pipedrive_product_attachment_id}')
         if service_package.package_plan.owner.is_staff:
-            pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
-            pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
-            url = f"https://{pipedrive_domain}.pipedrive.com/v1"
-            f"/deals/{service_package.package_plan.pipedrive_id}"
-            f"/products/{service_package.pipedrive_product_attachment_id}?api_token={pipedrive_key}"
-            body = {
-                "product_id": int(service_package.package_template.pipedrive_id),
-                "item_price": float(service_package.cost),
-                "quantity": int(service_package.quantity),
-            }
-            response = requests.put(url, json=body)
+            print('making the request with api key - update_pipedrive_service_package')
+            try:
+                "/v1/deals/{id}/products/{product_attachment_id}"
+                pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
+                pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
+                url = f"https://{pipedrive_domain}/v1/deals/{service_package.package_plan.pipedrive_id}/products/{service_package.pipedrive_product_attachment_id}?api_token={pipedrive_key}"
+                # f"/deals/{service_package.package_plan.pipedrive_id}"
+                # f"/products/{service_package.pipedrive_product_attachment_id}?api_token={pipedrive_key}"
+                print("checking url: ", url)
+                body = {
+                    "product_id": int(service_package.package_template.pipedrive_id),
+                    "item_price": float(service_package.cost),
+                    "quantity": int(service_package.quantity),
+                }
+                response = requests.put(url, json=body)
+            except Exception as e:
+                print('Failed to update pipedrive service package: ', e)
+                return False
         else:
             pipedrive_domain = service_package.package_plan.owner.pipedrive_api_url
             url = f"{pipedrive_domain}/v1"
@@ -1020,7 +1027,7 @@ def update_pipedrive_service_package(service_package):
             response = requests.delete(url, json=body, headers=headers)
 
         data = response.json()
-        print('\nChecking response data: ', data, '\n')
+        print('\nChecking response data: ', data, ' - update_pipedrive_service_package\n')
         deal_updated = data["success"]
 
         if not deal_updated:
@@ -1041,18 +1048,20 @@ def delete_pipedrive_service_package(package_plan_pipedrive_id, service_package_
         # Delete the pipedrive product from a pipedrve deal
         print('Deleting pipedrive service package from util function: ')
         print('checking owner staff status: ', owner)
+        print(f'checking pipedrive ids: {package_plan_pipedrive_id}, {service_package_pipedrive_id}')
         if owner.is_staff:
             pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
             pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
             print('deleting package..')
-            url = f"https://{pipedrive_domain}.pipedrive.com/v1"
-            f"/deals/{package_plan_pipedrive_id}0{service_package_pipedrive_id}"
-            f"?api_token={pipedrive_key}"
+            url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan_pipedrive_id}/products/{service_package_pipedrive_id}?api_token={pipedrive_key}"
+            print(f'URL {url}')
+            # f"/deals/{package_plan_pipedrive_id}/{service_package_pipedrive_id}"
+            # f"?api_token={pipedrive_key}"
             response = requests.delete(url)
         else:
             pipedrive_domain = owner.piprdrive_api_url
             url = f"https://{pipedrive_domain}.pipedrive.com/v1"
-            f"/deals/{package_plan_pipedrive_id}0{service_package_pipedrive_id}"
+            f"/deals/{package_plan_pipedrive_id}/{service_package_pipedrive_id}"
             customer = Customer.objects.get(user=owner)
             tokens = get_pipedrive_oauth_tokens(customer.pk)
             headers = {
@@ -1061,7 +1070,7 @@ def delete_pipedrive_service_package(package_plan_pipedrive_id, service_package_
             response = requests.delete(url, headers=headers)
 
         data = response.json()
-        print('\nChecking response data: ', data, '\n')
+        print(f'\nChecking response data:  - delete_pipedrive_service_package {data}\n')
         deal_deleted = data["success"]
 
         if not deal_deleted:

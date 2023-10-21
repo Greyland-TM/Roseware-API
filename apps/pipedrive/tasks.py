@@ -120,8 +120,8 @@ def sync_pipedrive(pk, action, type, owner_pk, attachment_id=None):
             # *** Delete Existing Pipedrive Product from Deal ***
             elif action == 'delete':
                 print('Calling delete_pipedrive_service_package')
-                print(f'service_package: {service_package}, owner: {owner}')
-                was_deleted = delete_pipedrive_service_package(service_package, attachment_id, owner)
+                print(f'service_package: {pk}, owner: {owner}')
+                was_deleted = delete_pipedrive_service_package(pk, attachment_id, owner)  # On delete, the pk is actually the pipedrive_id
 
         elif type == 'lead':
             customer_qs = Customer.objects.filter(pk=pk)

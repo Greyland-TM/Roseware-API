@@ -739,8 +739,31 @@ class SubscriptionSyncWebhook(APIView):
             customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
             print('\ncustomer: ', customer)
             # Print the item["subscription"] for each itme in subscription_items
+
+            # Delete all service packages that are not in the subscription items
+            service_package = ServicePackage.objects.filter(
+                stripe_subscription_item_id=subscription_items[0]["id"],
+            ).first()
+
+            service_packages = ServicePackage.objects.filter(
+                package_plan=service_package.package_plan
+            )
+            print('\n\nservice packages: ', service_packages)
+            # deleted_ids = []
+            for service_package in service_packages:
+                if service_package.stripe_subscription_item_id not in [
+                    item["id"] for item in subscription_items
+                ]:
+                    # deleted_ids.append(service_package.stripe_subscription_item_id)
+                    print(f'deleting service package: {service_package.pipedrive_product_attachment_id}')
+                    service_package.delete(
+                        should_sync_pipedrive=True, should_sync_stripe=False
+                    )
             
             for item in subscription_items:
+                # if item["id"] in deleted_ids:
+                #     print('skipping deleted item: ', item["id"])
+                #     continue
                 print('running get or create: ', item["id"])
                 stripe_subscription_item_id = item["subscription"]
                 package_plan = PackagePlan.objects.filter(
@@ -770,20 +793,8 @@ class SubscriptionSyncWebhook(APIView):
                         should_sync_pipedrive=True, should_sync_stripe=False
                     )
 
-            service_packages = ServicePackage.objects.filter(
-                package_plan=package_plan
-            )
-            print('\n\nservice packages: ', service_packages)
+            
 
-            # Delete all service packages that are not in the subscription items
-            for service_package in service_packages:
-                if service_package.stripe_subscription_item_id not in [
-                    item["id"] for item in subscription_items
-                ]:
-                    print('deleting service package...')
-                    service_package.delete(
-                        should_sync_pipedrive=True, should_sync_stripe=False
-                    )
 
         except Exception as e:
             print('Failed to update the subscription items: ', e)

@@ -160,7 +160,7 @@ def delete_package_plan_sync(
     # Delete the package plan
     if should_sync_pipedrive:
         logger.info("Deleting package plan in Pipedrive... (Check celery terminal)")
-        print('pipedrive_id: ', pipedrive_id,  ", owner: ", owner)
+        print('delete_package_plan_sync util: pipedrive_id: ', pipedrive_id,  ", owner: ", owner)
         sync_pipedrive.delay(pipedrive_id, "delete", "package_plan", owner)
     logger.info(f"should_sync_stripe value: {should_sync_stripe}")
     if should_sync_stripe:
@@ -229,18 +229,18 @@ def update_service_package_sync(
 
 
 def delete_service_package_sync(
-    pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner, attachemt_id=None
+    pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner, attachment_id=None
 ):
     # Delete the service package
-    logger.info("Deleting service package... ")
+    # logger.info("Deleting service package - delete_service_package_sync util ")
     if should_sync_stripe:
         logger.info("Deleting service package in Stripe... (Check celery terminal)")
         sync_stripe.delay(stripe_id, "update", "subscription")
     if should_sync_pipedrive:
         logger.info("Deleting service package in Pipedrive... (Check celery terminal)")
         try:
-            print('pipedrive_id: ', pipedrive_id,  ", owner: ", owner)
-            sync_pipedrive.delay(pipedrive_id, "delete", "service_package", owner, attachemt_id=attachemt_id)
+            print('\no_o - delete_service_package_sync util: pipedrive_id: ', pipedrive_id,  ", owner: ", owner, "attachment_id: ", attachment_id)
+            sync_pipedrive.delay(pipedrive_id, "delete", "service_package", owner, attachment_id=attachment_id)
         except Exception as e:
             print(f'Error deleting service package in Pipedrive: {e}')
 
