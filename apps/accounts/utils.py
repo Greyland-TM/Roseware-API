@@ -3,8 +3,8 @@ from django.apps import apps
 from django.db import IntegrityError
 from apps.pipedrive.tasks import sync_pipedrive
 from apps.stripe.tasks import sync_stripe
-
-
+import pytz
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,7 @@ def update_or_create_ongoing_sync(
                 stop_pipedrive_webhook=not should_sync_pipedrive,
                 stop_stripe_webhook=not should_sync_stripe,
                 owner=owner,
+                created_at=datetime.now(timezone.utc),
             )
             new_sync_object.save()
         except IntegrityError:

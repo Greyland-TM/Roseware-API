@@ -4,6 +4,7 @@ from django.db import models
 from django.db.models import CharField, DateTimeField
 from phonenumber_field.modelfields import PhoneNumberField
 from .managers import CustomUserManager
+from django.utils import timezone
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -187,7 +188,7 @@ class OngoingSync(models.Model):
     """
 
     type = CharField(default="", max_length=100, null=False, blank=False)
-    created_at = DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, null=True, blank=True)
     action = CharField(default="", max_length=100, null=False, blank=False)
     key_or_id = CharField(default="", max_length=100, null=False, blank=False)
     stop_pipedrive_webhook = models.BooleanField(default=False)

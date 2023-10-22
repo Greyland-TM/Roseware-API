@@ -3,6 +3,7 @@ from apps.package_manager.models import (ServicePackage, ServicePackageTemplate)
 from apps.stripe.models import StripeSubscription
 from apps.stripe.tasks import sync_stripe
 from apps.accounts.models import Employee
+from apps.accounts.models import Customer
 from .account_setup import get_pipedrive_oauth_tokens
 import base64
 import json
@@ -15,10 +16,13 @@ import os
 
 logger = logging.getLogger(__name__)
 
-""" CREATE CUSTOMER IN PIPEDRIVE """
 
-
+# --- Pipedrive Customer Creation ---
 def create_pipedrive_customer(customer):
+    """
+    This function creates a customer in Pipedrive.
+    """
+
     try:
         # Create the customer in Pipedrive
         # If the owner of the customer is a staff member, use the API key
@@ -79,10 +83,12 @@ def create_pipedrive_customer(customer):
         return False
 
 
-""" UPDATE CUSTOMER IN PIPEDRIVE """
-
-
+# --- UPDATE CUSTOMER IN PIPEDRIVE --- #
 def update_pipedrive_customer(customer):
+    """
+    This function updates a customer in Pipedrive.
+    """
+    
     try:
         # Create the customer in Pipedrive
         # If the owner of the customer is a staff member, use the API key
@@ -137,11 +143,11 @@ def update_pipedrive_customer(customer):
         return False
 
 
-""" DELETE CUSTOMER IN PIPEDRIVE """
-
-
+# --- DELETE CUSTOMER IN PIPEDRIVE --- #
 def delete_pipedrive_customer(pipedrive_id, owner):
-    from apps.accounts.models import Customer
+    """
+    This function deletes a customer in Pipedrive.
+    """
 
     try:
         # Delete the pipedrive product from a pipedrve deal
@@ -172,11 +178,11 @@ def delete_pipedrive_customer(pipedrive_id, owner):
         return False
 
 
-""" CREATE LEAD IN PIPEDRIVE """ ""
-
-
+# --- CREATE LEAD IN PIPEDRIVE --- #
 def create_pipedrive_lead(customer):
-    from apps.accounts.models import Customer
+    """
+    This function creates a lead in Pipedrive.
+    """
 
     try:
         # Then create the lead in Pipedrive
@@ -221,10 +227,12 @@ def create_pipedrive_lead(customer):
         return False
 
 
-""" CREATE PACKAGE IN PIPEDRIVE """
-
-
+# --- CREATE PACKAGE IN PIPEDRIVE --- #
 def create_pipedrive_package_template(package):
+    """
+    This function creates a package template ( product ) in Pipedrive.
+    """
+
     try:
         # Update Packeag in Pipedrive
         # If the owner of the package is a staff member, use the API key
@@ -286,10 +294,12 @@ def create_pipedrive_package_template(package):
         return False
 
 
-""" UPDATE PACKAGE IN PIPEDRIVE """
-
-
+# --- UPDATE PACKAGE IN PIPEDRIVE --- #
 def update_pipedrive_package_template(package_template):
+    """
+    This funstiion updates a package template ( product ) in Pipedrive.
+    """
+
     try:
         # Update Packeag in Pipedrive
         # If the owner of the package is a staff member, use the API key
@@ -346,10 +356,12 @@ def update_pipedrive_package_template(package_template):
         return False
 
 
-""" DELETE PACKAGE IN PIPEDRIVE """
-
-
+# --- DELETE PACKAGE IN PIPEDRIVE --- #
 def delete_pipedrive_package_template(pipedrive_id, owner):
+    """ 
+    This function deletes a package in Pipedrive.  
+    """
+
     try:
         # Delete the customer in Pipedrive
         if owner.is_staff:
@@ -380,10 +392,12 @@ def delete_pipedrive_package_template(pipedrive_id, owner):
         return False
 
 
-""" CREATE DEAL IN PIPEDRIVE """
-
-
+# --- CREATE DEAL IN PIPEDRIVE --- #
 def create_pipedrive_deal(package_plan):
+    """ 
+    This function creates a deal in Pipedrive.
+    """
+
     try:
         # Get the environment variables
         pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
@@ -455,10 +469,12 @@ def create_pipedrive_deal(package_plan):
         return False
 
 
-""" UPDATE DEAL IN PIPEDRIVE """
-
-
+# --- UPDATE DEAL IN PIPEDRIVE --- #
 def update_pipedrive_deal(package_plan):
+    """ 
+    This function updates a deal in Pipedrive.
+    """
+
     try:
         # Get the pipedrive customer id
         pipedrive_customer_id = package_plan.customer.pipedrive_id
@@ -521,10 +537,12 @@ def update_pipedrive_deal(package_plan):
         return False
 
 
-""" DELETE DEAL IN PIPEDRIVE """
-
-
+# --- DELETE DEAL IN PIPEDRIVE --- #
 def delete_pipedrive_deal(deal_id, owner):
+    """ 
+    DELETE DEAL IN PIPEDRIVE 
+    """
+
     try:
         # Delete the deal in Pipedrive
         if owner.is_staff:
@@ -550,16 +568,17 @@ def delete_pipedrive_deal(deal_id, owner):
             return False
 
         return was_deleted
-        package_plan.delete()
     except Exception as e:
         logger.info(e)
         return False
 
 
-""" ADD PRODUCT TO PIPEDRIVE DEAL """
-
-
+# --- CREATE PRODUCT IN PIPEDRIVE DEAL --- #
 def create_pipedrive_service_package(service_package):
+    """ 
+    This funstion creates a service package in Pipedrive.
+    """
+
     try:
         # Delete the pipedrive product from a pipedrve deal
         if service_package.package_plan.owner.is_staff:
@@ -602,10 +621,12 @@ def create_pipedrive_service_package(service_package):
         return False
 
 
-""" UPDATE PRODUCT IN PIPEDRIVE DEAL """
-
-
+# --- UPDATE PRODUCT IN PIPEDRIVE DEAL --- #
 def update_pipedrive_service_package(service_package):
+    """ 
+    This function updates a service package in Pipedrive.
+    """
+
     try:
         # Add a product to a pipedrive deal
         if service_package.package_plan.owner.is_staff:
@@ -654,10 +675,12 @@ def update_pipedrive_service_package(service_package):
         return False
 
 
-""" DELETE PRODUCT IN PIPEDRIVE DEAL """ ""
-
-
+# --- DELETE PRODUCT IN PIPEDRIVE DEAL --- #
 def delete_pipedrive_service_package(package_plan_pipedrive_id, service_package_pipedrive_id, owner):
+    """
+    This function deletes a service package from a pipedrive deal.
+    """
+
     try:
         # Delete the pipedrive product from a pipedrve deal
         if owner.is_staff:

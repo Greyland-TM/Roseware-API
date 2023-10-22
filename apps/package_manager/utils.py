@@ -196,9 +196,14 @@ def create_service_package_sync(
             kwargs={"pk": package.pk, "action": "create", "type": "service_package", "owner_pk": owner}
         )
     if should_sync_stripe:
+        subscription_id = package.package_plan.stripe_subscription_id
+        subscription_pk = StripeSubscription.objects.filter(
+            stripe_subscription_id=subscription_id
+        ).first().pk
         logger.info("Creating service package in Stripe... (Check celery terminal)")
+        print('subscription_pk: ', subscription_pk)
         sync_stripe.apply(
-            kwargs={"pk": package.pk, "action": "create", "type": "service_package"}
+            kwargs={"pk": subscription_pk, "action": "update", "type": "subscription"}
         )
 
 
