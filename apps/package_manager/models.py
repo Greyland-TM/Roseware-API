@@ -19,17 +19,6 @@ logger = logging.getLogger(__name__)
 class ServicePackageTemplate(models.Model):
     """This model will be used to store the templates for posts."""
 
-    # TYPE_CHOICES = (
-    #     ("webpage", "Webpage"),
-    #     ("social", "Social"),
-    #     ("blog", "Blog"),
-    #     ("ads", "Ads"), # TODO - Add this later - Probably just a part of the Duda app
-    # )
-    # RELATED_APP_CHOICES = (
-    #     ("duda", "Duda"),
-    #     ("markit", "Markit"),
-    #     ("ayrshare", "Ayrshare"),
-    # )
     ACTION_CHOICES = (("create", "Create"),)
 
     owner = models.ForeignKey(

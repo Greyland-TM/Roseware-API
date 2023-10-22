@@ -40,7 +40,7 @@ def update_or_create_ongoing_sync(
                 stop_pipedrive_webhook=not should_sync_pipedrive,
                 stop_stripe_webhook=not should_sync_stripe,
                 owner=owner,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(tz=pytz.utc),
             )
             new_sync_object.save()
         except IntegrityError:

@@ -241,7 +241,10 @@ def delete_service_package_sync(
     # logger.info("Deleting service package - delete_service_package_sync util ")
     if should_sync_stripe:
         logger.info("Deleting service package in Stripe... (Check celery terminal)")
-        sync_stripe.delay(stripe_id, "update", "subscription")
+        subscription_pk = StripeSubscription.objects.filter(
+            stripe_subscription_id=stripe_id
+        ).first().pk
+        sync_stripe.delay(subscription_pk, "update", "subscription")
     if should_sync_pipedrive:
         logger.info("Deleting service package in Pipedrive... (Check celery terminal)")
         sync_pipedrive.delay(pipedrive_id, "delete", "service_package", owner, attachment_id=attachment_id)

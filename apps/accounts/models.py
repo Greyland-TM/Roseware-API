@@ -188,7 +188,7 @@ class OngoingSync(models.Model):
     """
 
     type = CharField(default="", max_length=100, null=False, blank=False)
-    created_at = models.DateTimeField(default=timezone.now, null=True, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
     action = CharField(default="", max_length=100, null=False, blank=False)
     key_or_id = CharField(default="", max_length=100, null=False, blank=False)
     stop_pipedrive_webhook = models.BooleanField(default=False)
