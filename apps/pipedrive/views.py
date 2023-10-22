@@ -23,11 +23,14 @@ from apps.package_manager.models import (
     ServicePackageTemplate,
 )
 from django.core.cache import cache
-from .utils import (
+from .utils.webhook_utils import create_stripe_subscription_from_pipedrive_webhook
+from .utils.account_setup import (
     create_pipedrive_stripe_url_fields,
     create_pipedrive_type_fields,
     create_pipedrive_webhooks,
     set_pipedrive_keys,
+    set_pipedrive_keys,
+    get_pipedrive_oauth_tokens
 )
 
 logger = logging.getLogger(__name__)
@@ -603,7 +606,6 @@ class DealCreateWebhook(APIView):
     authentication_classes = [WebhookAuthentication]
 
     def post(self, request):
-        from .utils import get_pipedrive_oauth_tokens
         from apps.stripe.tasks import sync_stripe
         try:
             # Simetimes the webhooks come in too fast,
@@ -724,106 +726,26 @@ class DealCreateWebhook(APIView):
                 response = requests.get(url, headers=headers)
 
             deal_products = response.json()["data"]
-            try:
-                for product in deal_products:
-                    pipedrive_product_attachment_id = product["id"]
-                    service_package = ServicePackage.objects.filter(
-                        pipedrive_product_attachment_id=pipedrive_product_attachment_id
-                    ).first()
-                    if not service_package:
-                        product_id = product["product_id"]
-                        package_template = ServicePackageTemplate.objects.filter(
-                            pipedrive_id=product_id
-                        ).first()
-                        service_package = ServicePackage(
-                            pipedrive_product_attachment_id=pipedrive_product_attachment_id,
-                            package_plan=package_plan,
-                            customer=package_plan.customer,
-                            package_template=package_template,
-                            cost=product["item_price"],
-                            quantity=product["quantity"],
-                        )
-                        service_package.save(
-                            should_sync_pipedrive=False, should_sync_stripe=True
-                        )
-            except Exception as error:
-                print('Failed at "# Add all products to the ServicePackage"', error)
-
-            # Check if the customer has a payment method setup in Stripe
-            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-            customer_id = package_plan.customer.stripe_customer_id
-            try:
-                customer = stripe.Customer.retrieve(customer_id)
-                payment_methods = customer["default_source"]
-                if len(deal_products) > 0 and not payment_methods:
-                    package_plan.status = "lost"
-                    package_plan.save(
-                        should_sync_pipedrive=True, should_sync_stripe=False
-                    )
-                    # TODO - If this response failes here it's because the customer did not have a payment method in stripe,
-                    # but the user tried to create a subscription in pipedrive. We need to handle this case better. Right now 
-                    # it lets the deal to 'lost' so that it turns red in pipedrive. But we should add a message somehow. Maybe in pipedrive notes?
-                    return Response(
-                        status=status.HTTP_400_BAD_REQUEST,
-                        data={
-                            "ok": True,
-                            "message": "No payment method found for this customer.",
-                        },
-                    )
-            except stripe.error.StripeError as e:
-                print("Failed while checking for customer payment methods. ", e)
-                return Response(
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    data={
-                        "ok": False,
-                        "message": "Failed to retrieve customer payment methods.",
-                    },
-                )
-
+            
+            # Get the deal payment selections
             payment_selection = request_data[f"{payment_field_key}"]
             processing_selection = request_data[f"{processing_field_key}"]
             if payment_selection == None or processing_selection == None:
                 package_plan.status = "lost"
             else:
                 package_plan.status = request_data["status"]
+
             # Set up the Stripe Subscription or Payout
             # This is looking at the payment selection and processing selection to determine what to do
             # This should create either a subscription or a paymanet intent, and then either send an invoice or process the payment
             # These values come from the selection cields created in Pipedrive when an account is created
             if payment_selection == str(subscription_selector):
                 if processing_selection == str(pipedrive_deal_process_now_selector):
-                    logger.info(
-                        "Creating a new subscription for the customer. Processing now..."
-                    )
-                    stripe_subscription = StripeSubscription.objects.filter(
-                        customer=package_plan.customer
-                    ).first()
-                    if stripe_subscription:
-                        subscription_pk = stripe_subscription.pk
-                        sync_stripe.delay(subscription_pk, "update", "subscription")
-                        return Response(status=status.HTTP_200_OK, data={"ok": True})
-                    else:
-                        # Determine the owner of the subscription.
-                        # If the request is 
-                        customer_pk = request.GET.get("pk")
-                        if customer_pk is not None:
-                            customer = Customer.objects.get(pk=customer_pk)
-                            owner = customer.user
-                        else:
-                            employee = Employee.objects.all().first()
-                            owner = employee.user
-
-                        stripe_subscription = StripeSubscription(
-                            customer=package_plan.customer,
-                            package_plan=package_plan,
-                            owner=owner,
-                        )
-                        package_plan.status = "won"
-                        package_plan.save()
-                        stripe_subscription.save()
-                        # import time
-                        # time.sleep(10)
-                        return Response(status=status.HTTP_200_OK, data={"ok": True})
+                        response_data = create_stripe_subscription_from_pipedrive_webhook(request, deal_products, package_plan)
+                        if response_data["ok"]:
+                            Response(status=status.HTTP_200_OK, data=response_data)
+                        else: 
+                            return Response(status=status.HTTP_400_BAD_REQUEST, data=response_data)
                 else:
                     package_plan.status = "lost"
                     package_plan.save()
@@ -866,9 +788,6 @@ class DealSyncWebhook(APIView):
     authentication_classes = [WebhookAuthentication]
 
     def post(self, request):
-        from apps.stripe.models import StripeSubscription
-        from apps.stripe.tasks import sync_stripe
-        from .utils import get_pipedrive_oauth_tokens
 
         # ----------------------------
 
@@ -949,8 +868,6 @@ class DealSyncWebhook(APIView):
                     data={"ok": False, "message": "data.current is None"},
                 )
             pipedrive_id = request.data["meta"]["id"]
-            # if not pipedrive_id:
-                # pipedrive_id = request_data["meta"]["id"]
 
             # Check if the PackagePlan exists
             package_plan = PackagePlan.objects.filter(pipedrive_id=pipedrive_id).first()
@@ -969,30 +886,30 @@ class DealSyncWebhook(APIView):
                 pipedrive_key = os.environ.get("PIPEDRIVE_API_KEY")
                 pipedrive_domain = os.environ.get("PIPEDRIVE_DOMAIN")
 
-                payment_field_key = os.environ.get("PIPEDRIVE_DEAL_TYPE_FIELD")
-                processing_field_key = os.environ.get("PIPEDRIVE_DEAL_PROCESSING_FIELD")
-                subscription_selector = os.environ.get(
-                    "PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR"
-                )
-                payout_selector = os.environ.get("PIPEDRIVE_DEAL_PAYOUT_SELECTOR")
-                pipedrive_deal_invoice_selector = os.environ.get(
-                    "PIPEDRIVE_DEAL_INVOICE_SELECTOR"
-                )
-                pipedrive_deal_process_now_selector = os.environ.get(
-                    "PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR"
-                )
+                # payment_field_key = os.environ.get("PIPEDRIVE_DEAL_TYPE_FIELD")
+                # processing_field_key = os.environ.get("PIPEDRIVE_DEAL_PROCESSING_FIELD")
+                # subscription_selector = os.environ.get(
+                #     "PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR"
+                # )
+                # payout_selector = os.environ.get("PIPEDRIVE_DEAL_PAYOUT_SELECTOR")
+                # pipedrive_deal_invoice_selector = os.environ.get(
+                #     "PIPEDRIVE_DEAL_INVOICE_SELECTOR"
+                # )
+                # pipedrive_deal_process_now_selector = os.environ.get(
+                #     "PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR"
+                # )
             else:
                 plan_owner = Customer.objects.filter(user=package_plan.owner)
-                payment_field_key = plan_owner.PIPEDRIVE_DEAL_TYPE_FIELD
-                processing_field_key = plan_owner.PIPEDRIVE_DEAL_PROCESSING_FIELD
-                subscription_selector = plan_owner.PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR
-                payout_selector = plan_owner.PIPEDRIVE_DEAL_PAYOUT_SELECTOR
-                pipedrive_deal_invoice_selector = (
-                    plan_owner.PIPEDRIVE_DEAL_INVOICE_SELECTOR
-                )
-                pipedrive_deal_process_now_selector = (
-                    plan_owner.PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR
-                )
+                # payment_field_key = plan_owner.PIPEDRIVE_DEAL_TYPE_FIELD
+                # processing_field_key = plan_owner.PIPEDRIVE_DEAL_PROCESSING_FIELD
+                # subscription_selector = plan_owner.PIPEDRIVE_DEAL_SUBSCRIPTION_SELECTOR
+                # payout_selector = plan_owner.PIPEDRIVE_DEAL_PAYOUT_SELECTOR
+                # pipedrive_deal_invoice_selector = (
+                #     plan_owner.PIPEDRIVE_DEAL_INVOICE_SELECTOR
+                # )
+                # pipedrive_deal_process_now_selector = (
+                #     plan_owner.PIPEDRIVE_DEAL_PROCESS_NOW_SELECTOR
+                # )
                 pipedrive_domain = plan_owner.piprdrive_api_url
                 tokens = get_pipedrive_oauth_tokens(plan_owner.owner.pk)
                 headers = {
@@ -1003,15 +920,15 @@ class DealSyncWebhook(APIView):
             # And make sure that those are getting the inputed selection.
             # Update package plan details
             package_plan.name = request_data["title"]
-            payment_selection = request_data[f"{payment_field_key}"]
-            processing_selection = request_data[f"{processing_field_key}"]
-            if payment_selection == None or processing_selection == None:
-                package_plan.status = "lost"
-            else:
-                package_plan.status = request_data["status"]
-            package_plan.type = (
-                payment_selection.lower() if payment_selection is not None else None
-            )
+            # payment_selection = request_data[f"{payment_field_key}"]
+            # processing_selection = request_data[f"{processing_field_key}"]
+            # if payment_selection == None or processing_selection == None:
+            #     package_plan.status = "lost"
+            # else:
+            #     package_plan.status = request_data["status"]
+            # package_plan.type = (
+            #     payment_selection.lower() if payment_selection is not None else None
+            # )
 
             # Get the products from the deal and return if there are no changes
             if not headers:
@@ -1032,7 +949,8 @@ class DealSyncWebhook(APIView):
                         "message": "Data is the same, no need to update.",
                     },
                 )
-
+                
+            # todo - Only continue if the deal is a subscription
             # Delete all ServicePackage objects that are not in the products list
             service_package_products = ServicePackage.objects.filter(
                 package_plan=package_plan
@@ -1073,98 +991,98 @@ class DealSyncWebhook(APIView):
                 print('Failed at "# Add all products to the ServicePackage"', error)
 
             # Check if the customer has a payment method setup in Stripe
-            stripe.api_key = os.environ.get("STRIPE_PRIVATE")
-            customer_id = package_plan.customer.stripe_customer_id
-            try:
-                customer = stripe.Customer.retrieve(customer_id)
-                payment_methods = customer["default_source"]
-                if len(deal_products) > 0 and not payment_methods:
-                    package_plan.status = "lost"
-                    package_plan.save(
-                        should_sync_pipedrive=True, should_sync_stripe=False
-                    )
-                    # TODO - If this response failes here it's because the customer did not have a payment method in stripe,
-                    # but the user tried to create a subscription in pipedrive. We need to handle this case better. Right now 
-                    # it lets the deal to 'lost' so that it turns red in pipedrive. But we should add a message somehow. Maybe in pipedrive notes?
-                    return Response(
-                        status=status.HTTP_400_BAD_REQUEST,
-                        data={
-                            "ok": True,
-                            "message": "No payment method found for this customer.",
-                        },
-                    )
-            except stripe.error.StripeError as e:
-                print("Failed while checking for customer payment methods. ", e)
-                return Response(
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    data={
-                        "ok": False,
-                        "message": "Failed to retrieve customer payment methods.",
-                    },
-                )
+            # stripe.api_key = os.environ.get("STRIPE_PRIVATE")
+            # customer_id = package_plan.customer.stripe_customer_id
+            # try:
+            #     customer = stripe.Customer.retrieve(customer_id)
+            #     payment_methods = customer["default_source"]
+            #     if len(deal_products) > 0 and not payment_methods:
+            #         package_plan.status = "lost"
+            #         package_plan.save(
+            #             should_sync_pipedrive=True, should_sync_stripe=False
+            #         )
+            #         # TODO - If this response failes here it's because the customer did not have a payment method in stripe,
+            #         # but the user tried to create a subscription in pipedrive. We need to handle this case better. Right now 
+            #         # it lets the deal to 'lost' so that it turns red in pipedrive. But we should add a message somehow. Maybe in pipedrive notes?
+            #         return Response(
+            #             status=status.HTTP_400_BAD_REQUEST,
+            #             data={
+            #                 "ok": True,
+            #                 "message": "No payment method found for this customer.",
+            #             },
+            #         )
+            # except stripe.error.StripeError as e:
+            #     print("Failed while checking for customer payment methods. ", e)
+            #     return Response(
+            #         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            #         data={
+            #             "ok": False,
+            #             "message": "Failed to retrieve customer payment methods.",
+            #         },
+            #     )
 
             # Set up the Stripe Subscription or Payout
             # This is looking at the payment selection and processing selection to determine what to do
             # This should create either a subscription or a paymanet intent, and then either send an invoice or process the payment
             # These values come from the selection cields created in Pipedrive when an account is created
-            if payment_selection == str(subscription_selector):
-                if processing_selection == str(pipedrive_deal_process_now_selector):
-                    logger.info(
-                        "Creating a new subscription for the customer. Processing now..."
-                    )
-                    stripe_subscription = StripeSubscription.objects.filter(
-                        customer=package_plan.customer
-                    ).first()
-                    if stripe_subscription:
-                        subscription_pk = stripe_subscription.pk
-                        sync_stripe.delay(subscription_pk, "update", "subscription")
-                        return Response(status=status.HTTP_200_OK, data={"ok": True})
-                    else:
-                        # Determine the owner of the subscription.
-                        # If the request is 
-                        customer_pk = request.GET.get("pk")
-                        if customer_pk is not None:
-                            customer = Customer.objects.get(pk=customer_pk)
-                            owner = customer.user
-                        else:
-                            employee = Employee.objects.all().first()
-                            owner = employee.user
+            # if payment_selection == str(subscription_selector):
+            #     if processing_selection == str(pipedrive_deal_process_now_selector):
+            #         logger.info(
+            #             "Creating a new subscription for the customer. Processing now..."
+            #         )
+            #         stripe_subscription = StripeSubscription.objects.filter(
+            #             customer=package_plan.customer
+            #         ).first()
+            #         if stripe_subscription:
+            #             subscription_pk = stripe_subscription.pk
+            #             sync_stripe.delay(subscription_pk, "update", "subscription")
+            #             return Response(status=status.HTTP_200_OK, data={"ok": True})
+            #         else:
+            #             # Determine the owner of the subscription.
+            #             # If the request is 
+            #             customer_pk = request.GET.get("pk")
+            #             if customer_pk is not None:
+            #                 customer = Customer.objects.get(pk=customer_pk)
+            #                 owner = customer.user
+            #             else:
+            #                 employee = Employee.objects.all().first()
+            #                 owner = employee.user
 
-                        stripe_subscription = StripeSubscription(
-                            customer=package_plan.customer,
-                            package_plan=package_plan,
-                            owner=owner,
-                        )
-                        package_plan.status = "won"
-                        package_plan.save()
-                        stripe_subscription.save()
-                        # import time
-                        # time.sleep(10)
-                        return Response(status=status.HTTP_200_OK, data={"ok": True})
-                else:
-                    print('Subscription lost')
-                    package_plan.status = "lost"
-                    package_plan.save()
-                    return Response(status=status.HTTP_200_OK, data={"ok": True})
+            #             stripe_subscription = StripeSubscription(
+            #                 customer=package_plan.customer,
+            #                 package_plan=package_plan,
+            #                 owner=owner,
+            #             )
+            #             package_plan.status = "won"
+            #             package_plan.save()
+            #             stripe_subscription.save()
+            #             # import time
+            #             # time.sleep(10)
+            #             return Response(status=status.HTTP_200_OK, data={"ok": True})
+            #     else:
+            #         print('Subscription lost')
+            #         package_plan.status = "lost"
+            #         package_plan.save()
+            #         return Response(status=status.HTTP_200_OK, data={"ok": True})
 
-            elif payment_selection == str(payout_selector):
-                if processing_selection == str(pipedrive_deal_process_now_selector):
-                    logger.info("** Creating Stripe Payout. Processing now...")
-                    package_plan.status = "lost"
-                    package_plan.save()
-                    return Response(status=status.HTTP_200_OK, data={"ok": True})
-                else:
-                    package_plan.status = "lost"
-                    package_plan.save()
-                    logger.info("** Creating Stripe Payout. Sending invoice...")
-                    return Response(status=status.HTTP_200_OK, data={"ok": True})
-            else:
-                package_plan.status = "lost"
-                package_plan.save(should_sync_pipedrive=True, should_sync_stripe=False)
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST,
-                    data={"ok": False, "message": "Unknown deal type."},
-                )
+            # elif payment_selection == str(payout_selector):
+            #     if processing_selection == str(pipedrive_deal_process_now_selector):
+            #         logger.info("** Creating Stripe Payout. Processing now...")
+            #         package_plan.status = "lost"
+            #         package_plan.save()
+            #         return Response(status=status.HTTP_200_OK, data={"ok": True})
+            #     else:
+            #         package_plan.status = "lost"
+            #         package_plan.save()
+            #         logger.info("** Creating Stripe Payout. Sending invoice...")
+            #         return Response(status=status.HTTP_200_OK, data={"ok": True})
+            # else:
+            #     package_plan.status = "lost"
+            #     package_plan.save(should_sync_pipedrive=True, should_sync_stripe=False)
+            #     return Response(
+            #         status=status.HTTP_400_BAD_REQUEST,
+            #         data={"ok": False, "message": "Unknown deal type."},
+            #     )
 
         except Exception as e:
             logger.error(e)

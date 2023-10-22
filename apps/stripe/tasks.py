@@ -3,7 +3,7 @@ from apps.accounts.models import Customer
 from apps.package_manager.models import ServicePackageTemplate, PackagePlan, ServicePackage
 from .models import StripePaymentDetails, StripeSubscription
 import logging
-from .utils import (
+from .utils.celery_utils import (
     create_stripe_customer,
     update_stripe_customer,
     delete_stripe_customer,

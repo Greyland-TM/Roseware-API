@@ -1,17 +1,21 @@
 
-from apps.package_manager.models import (PackagePlan, ServicePackage,
-                                         ServicePackageTemplate)
+from apps.package_manager.models import (
+    PackagePlan, ServicePackage,
+    ServicePackageTemplate
+)
 from roseware.celery import app
 import logging
-from .utils import (create_pipedrive_customer, create_pipedrive_deal,
-                    create_pipedrive_lead, create_pipedrive_package_template,
-                    create_pipedrive_service_package,
-                    delete_pipedrive_customer, delete_pipedrive_deal,
-                    delete_pipedrive_package_template,
-                    delete_pipedrive_service_package,
-                    update_pipedrive_customer, update_pipedrive_deal,
-                    update_pipedrive_package_template,
-                    update_pipedrive_service_package)
+from .utils.celery_utils import (
+    create_pipedrive_customer, create_pipedrive_deal,
+    create_pipedrive_lead, create_pipedrive_package_template,
+    create_pipedrive_service_package,
+    delete_pipedrive_customer, delete_pipedrive_deal,
+    delete_pipedrive_package_template,
+    delete_pipedrive_service_package,
+    update_pipedrive_customer, update_pipedrive_deal,
+    update_pipedrive_package_template,
+    update_pipedrive_service_package
+)
 
 # set up the logger
 logger = logging.getLogger(__name__)
