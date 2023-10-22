@@ -181,7 +181,6 @@ class ProductCreateWebhook(APIView):
                 stripe_product_id=product_id
             ).first()
             if existing_package_template:
-                print('existing package template found...')
                 existing_package_template.save(
                     should_sync_pipedrive=False, should_sync_stripe=False
                 )
@@ -627,7 +626,6 @@ class SubscriptionCreateWebhook(APIView):
                 stripe_subscription_id=subscription_id
             ).first()
             if package_plan:
-                print('package plan already exists...')
                 # logger.info('*** Package plan already exists ***')
                 return Response(
                     status=status.HTTP_200_OK,
