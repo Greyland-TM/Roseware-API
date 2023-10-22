@@ -37,7 +37,6 @@ class StripeSubscriptionCheckoutSession(APIView):
             redirect_url = request.GET['redirect_url']
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             package = ServicePackageTemplate.objects.get(pk=request.GET["pk"])
-            print('Checking package: ', package)
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
                 line_items=[{'price': package.stripe_price_id, 'quantity': 1}],
@@ -178,7 +177,6 @@ class ProductCreateWebhook(APIView):
             type = split_related_app[1].lower()
 
             # Check for an existing package template
-            print('checking for an existing package template...')
             existing_package_template = ServicePackageTemplate.objects.filter(
                 stripe_product_id=product_id
             ).first()
@@ -192,7 +190,6 @@ class ProductCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('no existing package template found, creating a new one...')
             # Check the request url for the customer pk. If it's there, thens set the owner to that customer, otherwise set it to the representative
             # The reason for this is so that later we can check if the customer is owned by the rep or the customer, and make the correct api requests.
             # If an employee is the owner then api keys will be used, if it is a customer then oauth will be used.
@@ -625,7 +622,6 @@ class SubscriptionCreateWebhook(APIView):
                         data={"ok": True, "message": "Synced successfully."},
                     )
 
-            print('checking if the package plan already exists...')
             # Check if the package plan already exists
             package_plan = PackagePlan.objects.filter(
                 stripe_subscription_id=subscription_id
@@ -638,7 +634,6 @@ class SubscriptionCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('package plan does not exist, setting up a new one...')
             package_plan = {
                 "owner": request.user,
                 'billing_cycle': 'monthly',
@@ -649,15 +644,12 @@ class SubscriptionCreateWebhook(APIView):
                 "packages": [],
             }
 
-            print('products: ', product_details)
             for item in items:
-                print('item: ', item)
                 try:
                     stripe_subscription_item_id = item["id"]
                     price_id = item["price"]["id"]
                     price_value = item["price"]["unit_amount"] / 100
                     product = stripe.Product.retrieve(item["price"]["product"])
-                    print("retrieve product: ", product)
                     product_name = product["name"]
                     requires_onboarding = False
                     # split product name in 2 parts, at the first space, and use the first part as the related_app and the second as the type
@@ -685,7 +677,6 @@ class SubscriptionCreateWebhook(APIView):
                     print('FAILE WHILE CRETING PRODUCTS: ', e)
 
             # Create the service packages
-            print('\n\n@@ O_Ocreating the service packages: ', package_plan)
             create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
 
             return Response(
@@ -732,18 +723,9 @@ class SubscriptionSyncWebhook(APIView):
         # Get the subscription items frpm the request
         request_data = request.data["data"]["object"]
         subscription_items = request_data["items"]["data"]
-        # package_plan = PackagePlan.objects.filter(
-        #     stripe_subscription_id=request_data["id"]
-        # ).first()
-        # package_plan.delete(should_sync_pipedrive=True, should_sync_stripe=False)
-
-        # Check each subscription item and update the quantity - More values can be added here later
-        # print('\n\nU_Uupdating the subscription items: ', subscription_items)
         try:
             customer_id = request.data["data"]["object"]["customer"]
             customer = Customer.objects.filter(stripe_customer_id=customer_id).first()
-            print('\ncustomer: ', customer)
-            # Print the item["subscription"] for each itme in subscription_items
 
             # Delete all service packages that are not in the subscription items
             service_package = ServicePackage.objects.filter(
@@ -753,23 +735,16 @@ class SubscriptionSyncWebhook(APIView):
             service_packages = ServicePackage.objects.filter(
                 package_plan=service_package.package_plan
             )
-            print('\n\nservice packages: ', service_packages)
             # deleted_ids = []
             for service_package in service_packages:
                 if service_package.stripe_subscription_item_id not in [
                     item["id"] for item in subscription_items
                 ]:
-                    # deleted_ids.append(service_package.stripe_subscription_item_id)
-                    print(f'deleting service package: {service_package.pipedrive_product_attachment_id}')
                     service_package.delete(
                         should_sync_pipedrive=True, should_sync_stripe=False
                     )
             
             for item in subscription_items:
-                # if item["id"] in deleted_ids:
-                #     print('skipping deleted item: ', item["id"])
-                #     continue
-                print('running get or create: ', item["id"])
                 stripe_subscription_item_id = item["subscription"]
                 package_plan = PackagePlan.objects.filter(
                     stripe_subscription_id=stripe_subscription_item_id
@@ -789,7 +764,6 @@ class SubscriptionSyncWebhook(APIView):
                         "package_template": package_template,
                     }
                 )
-                print('created: ', created)
                 if not created:
                     print(float(int(item["price"]["unit_amount_decimal"]) / 100))
                     service_package.quantity = item["quantity"]

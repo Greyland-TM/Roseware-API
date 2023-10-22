@@ -204,7 +204,6 @@ def create_stripe_customer(customer):
 
 
 def update_stripe_customer(customer):
-    print("\n\n*_*UPDATING STRIPE CUSTOMER")
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
         stripe_account = None 
@@ -328,18 +327,15 @@ def delete_stripe_payment_method(stripe_id):
 def create_stripe_subscription(subscription, owner):
     stripe.api_key = os.environ.get("STRIPE_PRIVATE")
     try:
-        print("\n\n*_*SAVED NEW STRIPE SUBSCRIPTION")
         # Get the stripe account
         stripe_account = None
         if not owner.is_staff:
             stripe_account = owner.stripe_account_id
         package_plan = subscription.package_plan
 
-        print('getting the service packages')
         # Get all packages associated with the package plan
         service_packages = ServicePackage.objects.filter(package_plan=package_plan)
 
-        print('creating the stripe subscription price object')
         # TODO - This is creating a new price for each subscription. This is not ideal.
         # It is leadin to many prices being created in Stripe. 
         
@@ -367,7 +363,6 @@ def create_stripe_subscription(subscription, owner):
                 }
             )
 
-        print('creating the stripe subscription')
         # Create a subscription on Stripe
         new_subscription = stripe.Subscription.create(
             customer=customer.stripe_customer_id,
@@ -378,17 +373,10 @@ def create_stripe_subscription(subscription, owner):
         )
         subscription_id = new_subscription["id"]
         
-        try:
-            print('\n#saving the subscription now: ', subscription_id)
-            subscription.stripe_subscription_id = subscription_id
-            package_plan.stripe_subscription_id = subscription_id
-            print(f'^^saving the subscription now: {subscription_id}, {package_plan.pk}')
-            subscription.save(should_sync_stripe=False)
-            package_plan.save(should_sync_stripe=False, should_sync_pipedrive=True)
-        except Exception as e:
-            print('\n\n0_0Failed to do something: ', e)
-
-        print('package placn stripe subscription id: ', package_plan.stripe_subscription_id)
+        subscription.stripe_subscription_id = subscription_id
+        package_plan.stripe_subscription_id = subscription_id
+        subscription.save(should_sync_stripe=False)
+        package_plan.save(should_sync_stripe=False, should_sync_pipedrive=True)
 
         # save the subscription item id and price id to the ServicePackage
         data = new_subscription["items"]["data"]

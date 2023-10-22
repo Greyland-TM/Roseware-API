@@ -41,7 +41,7 @@ def create_package_template_sync(
                 "owner_pk": owner
             }
         )
-        
+
     if should_sync_stripe:
         logger.info("Creating package template in Stripe... (Check celery terminal)")
         sync_stripe.apply(
@@ -115,7 +115,7 @@ def create_package_plan_sync(
 
     # Create the package planc
     if should_sync_pipedrive:
-        print("Creating package plan in Pipedrive... (Check celery terminal)")
+        logger.info("Creating package plan in Pipedrive... (Check celery terminal)")
         sync_pipedrive.apply(
             kwargs={
                 "pk": package_plan.pk, 
