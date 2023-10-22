@@ -840,7 +840,7 @@ class DealSyncWebhook(APIView):
             # Simetimes the webhooks come in too fast,
             # so we need to wait a second to make sure the OnGoingSync object is created
             time.sleep(1)
-            print('\n\n**Updating Deal...')
+
             # Check if we should stop processing pipedrive webhooks
             stop_pipedrive_webhooks = Toggles.objects.filter(name="Toggles").first()
             if stop_pipedrive_webhooks.stop_pipedrive_webhooks:
@@ -861,7 +861,6 @@ class DealSyncWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('Getting request data...')
             request_data = request.data['current']
             # Get the pipedrive data
             if not request_data:
@@ -881,8 +880,7 @@ class DealSyncWebhook(APIView):
                         "message": "No service package found with this pipedrive id.",
                     },
                 )
-            
-            print('Getting env vars...')
+
             # If the owner is a custopmer use oauth, else use api key
             headers = None
             if package_plan.owner.is_staff:
@@ -901,7 +899,6 @@ class DealSyncWebhook(APIView):
             # Update package plan details
             package_plan.name = request_data["title"]
 
-            print('Getting the products from pipedrive...')
             # Get the products from the deal and return if there are no changes
             if not headers:
                 url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}/products?api_token={pipedrive_key}"
@@ -912,7 +909,6 @@ class DealSyncWebhook(APIView):
                 )
                 response = requests.get(url, headers=headers)
 
-            print('Checking if the data is the same...')
             deal_products = response.json()["data"]
             if is_data_same(package_plan, request_data, deal_products):\
                 return Response(
@@ -923,8 +919,6 @@ class DealSyncWebhook(APIView):
                     },
                 )
                 
-            
-            print('Deleting all ServicePackage objects that are not in the products list...')
             # todo - Only continue if the deal is a subscription
             # Delete all ServicePackage objects that are not in the products list
             service_package_products = ServicePackage.objects.filter(
@@ -939,7 +933,6 @@ class DealSyncWebhook(APIView):
                     ):
                         service_package_product.delete(should_sync_pipedrive=False)
 
-            print('Adding all products to the ServicePackage...')
             # Add all products to the ServicePackage
             try:
                 for product in deal_products:
