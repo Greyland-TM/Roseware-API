@@ -177,17 +177,6 @@ def create_service_package_sync(
     if not should_sync_pipedrive and not should_sync_stripe:
         return
 
-    # Get the sync platform
-    sync_platform = package.last_synced_from
-
-    # Check for an ongoing sync
-    # update_or_create_ongoing_sync(
-    # type='service_package',
-    # action='create',
-    # should_sync_stripe=should_sync_stripe,
-    # should_sync_pipedrive=should_sync_pipedrive,
-    # sync_platform=sync_platform
-    # )
 
     # # Create the service package
     if should_sync_pipedrive:
@@ -195,6 +184,8 @@ def create_service_package_sync(
         sync_pipedrive.apply(
             kwargs={"pk": package.pk, "action": "create", "type": "service_package", "owner_pk": owner}
         )
+
+    # Update the stripe subscription with the new service package
     if should_sync_stripe:
         subscription_id = package.package_plan.stripe_subscription_id
         subscription_pk = StripeSubscription.objects.filter(

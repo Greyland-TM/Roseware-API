@@ -43,7 +43,7 @@ def create_stripe_subscription_from_pipedrive_webhook(request, deal_products, pa
                 quantity=product["quantity"],
             )
             service_package.save(
-                should_sync_pipedrive=False, should_sync_stripe=True
+                should_sync_pipedrive=False, should_sync_stripe=False
             )
 
     # Check if the customer has a payment method setup in Stripe
