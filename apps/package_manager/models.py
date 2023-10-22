@@ -131,8 +131,6 @@ class PackagePlan(models.Model):
         from .utils import create_package_plan_sync, update_package_plan_sync
 
         is_new = self._state.adding
-        print(f'\n\nSAVING PACKAGE PLAN is_new: {is_new}, pk: {self.pk}')
-        print('stripe_subscription_id: ', self.stripe_subscription_id, ', pipedrive_id: , ', self.pipedrive_id, '\n\n')
 
         # There are situations where a pipedrive or stripe id is being overwritten with None
         # So here I want to only set the pipedrive_id and stripe_subscription_id if they are not None
@@ -141,15 +139,10 @@ class PackagePlan(models.Model):
 
         super(PackagePlan, self).save(*args, **kwargs)
 
-        # if self.pipedrive_id is None:
-        #     print('pipedrive  id is none, setting to ', pipedrive_id)
-        #     self.pipedrive_id = pipedrive_id
-
         if self.stripe_subscription_id is None:
             self.stripe_subscription_id = stripe_subscription_id
 
         if is_new:
-            print(f'\nCreating package plan...')
             create_package_plan_sync(
                 self, should_sync_pipedrive, should_sync_stripe, self.owner.pk
             )
@@ -162,7 +155,6 @@ class PackagePlan(models.Model):
         self, should_sync_pipedrive=True, should_sync_stripe=True, *args, **kwargs
     ):
         from .utils import delete_package_plan_sync
-        print(f'\n\nDELETING PACKAGE PLAN pk: {self.pk}')
 
         # Before deleting the PackagePlan instance, delete each related ServicePackage instance
         for service_package in self.servicepackage_set.all():
@@ -177,7 +169,6 @@ class PackagePlan(models.Model):
         logger.info("Deleted package plan:  ")
         super(PackagePlan, self).delete(*args, **kwargs)
 
-        print('calling delete_package_plan_sync. pk: ', pk, 'stripe_subscription_id: ', stripe_subscription_id, 'owner.pk: ', owner.pk)
         delete_package_plan_sync(
             pk,
             stripe_subscription_id,
@@ -244,8 +235,6 @@ class ServicePackage(models.Model):
 
         is_new = self._state.adding
 
-        print(f'SAVING SERVICE PACKAGE is_new: {is_new}, pipedrive_product_attachment_id: {self.pipedrive_product_attachment_id}')
-
         super(ServicePackage, self).save(*args, **kwargs)
 
         if is_new:
@@ -276,7 +265,6 @@ class ServicePackage(models.Model):
         customer = self.customer
         title = self.package_template.name
         super(ServicePackage, self).delete(*args, **kwargs)
-        print('\n\nDELETING SERVICE PACKAGE')
         delete_service_package_sync(
             piperive_id,
             stripe_subscription_item_id,

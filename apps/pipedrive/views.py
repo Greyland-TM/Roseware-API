@@ -60,7 +60,6 @@ class PipedriveOauth(APIView):
                 "client_secret": client_secret,
                 "redirect_uri": f"{frontend_url}/dashboard/integrations",
             }
-            print(payload)
             response = requests.post(url, data=payload)
             data = response.json()
 
@@ -649,7 +648,6 @@ class DealCreateWebhook(APIView):
                     data={"ok": True, "message": "Synced successfully."},
                 )
 
-            print('\n\n^^checking for existing...')
             # Check if the package already exists
             existing_package = PackagePlan.objects.filter(
                 pipedrive_id=pipedrive_id
@@ -669,7 +667,6 @@ class DealCreateWebhook(APIView):
                 owner = employee.user
 
             # Create the package
-            print('\n\n^^Creating the package...')
             package_plan = PackagePlan(
                 owner=owner,
                 pipedrive_id=pipedrive_id,
@@ -716,8 +713,6 @@ class DealCreateWebhook(APIView):
                     "Authorization": f'Bearer {tokens["access_token"]}',
                 }
 
-            print('Creat service packages here: ', request_data)
-            # /v1/deals/{id}/products
             # Get the products from the deal and return if there are no changes
             if not headers:
                 url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}/products?api_token={pipedrive_key}"
@@ -728,7 +723,6 @@ class DealCreateWebhook(APIView):
                 )
                 response = requests.get(url, headers=headers)
 
-            print('Got the response here: ', response.json()["data"])
             deal_products = response.json()["data"]
             try:
                 for product in deal_products:
@@ -755,7 +749,6 @@ class DealCreateWebhook(APIView):
             except Exception as error:
                 print('Failed at "# Add all products to the ServicePackage"', error)
 
-            print('checking if the customer has a payment method setup in stripe')
             # Check if the customer has a payment method setup in Stripe
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             customer_id = package_plan.customer.stripe_customer_id
@@ -787,14 +780,12 @@ class DealCreateWebhook(APIView):
                     },
                 )
 
-            print('processing the stripe integration')
             payment_selection = request_data[f"{payment_field_key}"]
             processing_selection = request_data[f"{processing_field_key}"]
             if payment_selection == None or processing_selection == None:
                 package_plan.status = "lost"
             else:
                 package_plan.status = request_data["status"]
-            print(payment_selection, processing_selection)
             # Set up the Stripe Subscription or Payout
             # This is looking at the payment selection and processing selection to determine what to do
             # This should create either a subscription or a paymanet intent, and then either send an invoice or process the payment
@@ -808,7 +799,6 @@ class DealCreateWebhook(APIView):
                         customer=package_plan.customer
                     ).first()
                     if stripe_subscription:
-                        print('200 existing stripe subscription')
                         subscription_pk = stripe_subscription.pk
                         sync_stripe.delay(subscription_pk, "update", "subscription")
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
@@ -828,16 +818,13 @@ class DealCreateWebhook(APIView):
                             package_plan=package_plan,
                             owner=owner,
                         )
-                        print('\n\n^^saving the stripe subscription')
                         package_plan.status = "won"
                         package_plan.save()
-                        print(stripe_subscription)
                         stripe_subscription.save()
                         # import time
                         # time.sleep(10)
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
                 else:
-                    print('eubscription lost')
                     package_plan.status = "lost"
                     package_plan.save()
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
@@ -854,23 +841,13 @@ class DealCreateWebhook(APIView):
                     logger.info("** Creating Stripe Payout. Sending invoice...")
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
             else:
-                print('unknown deal type, setting to lost....')
                 package_plan.status = "lost"
                 package_plan.save(should_sync_pipedrive=True, should_sync_stripe=False)
                 return Response(
                     status=status.HTTP_400_BAD_REQUEST,
                     data={"ok": False, "message": "Unknown deal type."},
                 )
-
-        # except Exception as e:
-        #     logger.error(e)
-        #     return Response(
-        #         status=status.HTTP_400_BAD_REQUEST,
-        #         data={"ok": False, "message": "Failed to process request."},
-        #     )
-                
-
-            return Response(status=status.HTTP_200_OK, data={"ok": True})
+            
         except Exception as e:
             logger.error(e)
             return Response(
@@ -959,7 +936,6 @@ class DealSyncWebhook(APIView):
             if ongoing_sync:
                 ongoing_sync.has_recieved_pipedrive_webhook = True
                 ongoing_sync.save()
-                print('200 ongoing sync')
                 return Response(
                     status=status.HTTP_200_OK,
                     data={"ok": True, "message": "Synced successfully."},
@@ -987,8 +963,6 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
-            print('\n&&CHECK stripe id here: ', package_plan.stripe_subscription_id)
-            print('\n* Getting the envcironment variables\n')
             # If the owner is a custopmer use oauth, else use api key
             headers = None
             if package_plan.owner.is_staff:
@@ -1027,7 +1001,6 @@ class DealSyncWebhook(APIView):
             
             # TODO - I need to check if the processing and payment selection fields are set up in pipedrive and that they match the ones in the environment variables
             # And make sure that those are getting the inputed selection.
-            print('getting the pipedrive deal data')
             # Update package plan details
             package_plan.name = request_data["title"]
             payment_selection = request_data[f"{payment_field_key}"]
@@ -1040,7 +1013,6 @@ class DealSyncWebhook(APIView):
                 payment_selection.lower() if payment_selection is not None else None
             )
 
-            print('Setting up request url')
             # Get the products from the deal and return if there are no changes
             if not headers:
                 url = f"https://{pipedrive_domain}.pipedrive.com/v1/deals/{package_plan.pipedrive_id}/products?api_token={pipedrive_key}"
@@ -1051,9 +1023,7 @@ class DealSyncWebhook(APIView):
                 )
                 response = requests.get(url, headers=headers)
 
-            print('checking if the package plan data is the same as the request data')
             deal_products = response.json()["data"]
-            print('deal_products: ', deal_products)
             if is_data_same(package_plan, request_data, deal_products):\
                 return Response(
                     status=status.HTTP_200_OK,
@@ -1063,7 +1033,6 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
-            print('deleting all service packages that are not in the pipedrive products list')
             # Delete all ServicePackage objects that are not in the products list
             service_package_products = ServicePackage.objects.filter(
                 package_plan=package_plan
@@ -1077,7 +1046,6 @@ class DealSyncWebhook(APIView):
                     ):
                         service_package_product.delete(should_sync_pipedrive=False)
 
-            print('adding all pipedrive products that are not saved to the service package')
             # Add all products to the ServicePackage
             try:
                 for product in deal_products:
@@ -1104,7 +1072,6 @@ class DealSyncWebhook(APIView):
             except Exception as error:
                 print('Failed at "# Add all products to the ServicePackage"', error)
 
-            print('checking if the customer has a payment method setup in stripe')
             # Check if the customer has a payment method setup in Stripe
             stripe.api_key = os.environ.get("STRIPE_PRIVATE")
             customer_id = package_plan.customer.stripe_customer_id
@@ -1136,8 +1103,6 @@ class DealSyncWebhook(APIView):
                     },
                 )
 
-            print('processing the stripe integration')
-            print(payment_selection, processing_selection)
             # Set up the Stripe Subscription or Payout
             # This is looking at the payment selection and processing selection to determine what to do
             # This should create either a subscription or a paymanet intent, and then either send an invoice or process the payment
@@ -1151,7 +1116,6 @@ class DealSyncWebhook(APIView):
                         customer=package_plan.customer
                     ).first()
                     if stripe_subscription:
-                        print('200 existing stripe subscription')
                         subscription_pk = stripe_subscription.pk
                         sync_stripe.delay(subscription_pk, "update", "subscription")
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
@@ -1171,16 +1135,14 @@ class DealSyncWebhook(APIView):
                             package_plan=package_plan,
                             owner=owner,
                         )
-                        print('\n\n^^saving the stripe subscription')
                         package_plan.status = "won"
                         package_plan.save()
-                        print(stripe_subscription)
                         stripe_subscription.save()
                         # import time
                         # time.sleep(10)
                         return Response(status=status.HTTP_200_OK, data={"ok": True})
                 else:
-                    print('eubscription lost')
+                    print('Subscription lost')
                     package_plan.status = "lost"
                     package_plan.save()
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
@@ -1197,7 +1159,6 @@ class DealSyncWebhook(APIView):
                     logger.info("** Creating Stripe Payout. Sending invoice...")
                     return Response(status=status.HTTP_200_OK, data={"ok": True})
             else:
-                print('unknown deal type, setting to lost....')
                 package_plan.status = "lost"
                 package_plan.save(should_sync_pipedrive=True, should_sync_stripe=False)
                 return Response(

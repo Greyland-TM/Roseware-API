@@ -36,7 +36,6 @@ def sync_stripe(pk, action, type):
 
             # *** Update Existing Stripe Customer ***
             elif action == 'update':
-                print(f'Updating Stripe Customer: {pk}')
                 customer = Customer.objects.filter(pk=pk).first()
                 was_customer_updated = update_stripe_customer(customer)
                 if not was_customer_updated:
