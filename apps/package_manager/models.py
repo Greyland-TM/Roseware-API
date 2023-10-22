@@ -136,19 +136,20 @@ class PackagePlan(models.Model):
 
         # There are situations where a pipedrive or stripe id is being overwritten with None
         # So here I want to only set the pipedrive_id and stripe_subscription_id if they are not None
-        pipedrive_id = self.pipedrive_id
+        # pipedrive_id = self.pipedrive_id 
         stripe_subscription_id = self.stripe_subscription_id
 
         super(PackagePlan, self).save(*args, **kwargs)
 
-        if self.pipedrive_id is None:
-            print('pipedrive  id is none, setting to ', pipedrive_id)
-            self.pipedrive_id = pipedrive_id
+        # if self.pipedrive_id is None:
+        #     print('pipedrive  id is none, setting to ', pipedrive_id)
+        #     self.pipedrive_id = pipedrive_id
 
         if self.stripe_subscription_id is None:
             self.stripe_subscription_id = stripe_subscription_id
 
         if is_new:
+            print(f'\nCreating package plan...')
             create_package_plan_sync(
                 self, should_sync_pipedrive, should_sync_stripe, self.owner.pk
             )

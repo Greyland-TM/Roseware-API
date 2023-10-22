@@ -80,6 +80,7 @@ def sync_pipedrive(pk, action, type, owner_pk, attachment_id=None):
 
             # *** Create New Pipedrive Deal ***
             if action == 'create':
+                print('creating deal now... ')
                 was_deal_created = create_pipedrive_deal(package_plan)
                 if not was_deal_created:
                     logger.error('*** Failed to create deal in Pipedrive ***')

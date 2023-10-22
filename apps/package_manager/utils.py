@@ -111,9 +111,9 @@ def create_package_plan_sync(
         owner=owner,
     )
 
-    # Create the package plan
+    # Create the package planc
     if should_sync_pipedrive:
-        logger.info("Creating package plan in Pipedrive... (Check celery terminal)")
+        print("Creating package plan in Pipedrive... (Check celery terminal)")
         sync_pipedrive.apply(
             kwargs={
                 "pk": package_plan.pk, 
