@@ -651,37 +651,42 @@ class SubscriptionCreateWebhook(APIView):
 
             print('products: ', product_details)
             for item in items:
-                stripe_subscription_item_id = item["id"]
-                price_id = item["price"]["id"]
-                price_value = item["price"]["unit_amount"] / 100
-                product = stripe.Product.retrieve(product_id)
-                product_name = product["name"]
-                requires_onboarding = False
-                # split product name in 2 parts, at the first space, and use the first part as the related_app and the second as the type
-                related_app = product_name.split(" ", 1)[0]
-                type = product_name.split(" ", 1)[1]
+                print('item: ', item)
+                try:
+                    stripe_subscription_item_id = item["id"]
+                    price_id = item["price"]["id"]
+                    price_value = item["price"]["unit_amount"] / 100
+                    product = stripe.Product.retrieve(item["price"]["product"])
+                    print("retrieve product: ", product)
+                    product_name = product["name"]
+                    requires_onboarding = False
+                    # split product name in 2 parts, at the first space, and use the first part as the related_app and the second as the type
+                    related_app = product_name.split(" ", 1)[0]
+                    type = product_name.split(" ", 1)[1]
 
-                package = {
-                    "stripe_subscription_item_id": stripe_subscription_item_id,
-                    "stripe_price_id": price_id,
-                    "name": product_name,
-                    "price": price_value,
-                    "related_app": related_app,
-                    "type": type,
-                    "requires_onboarding": requires_onboarding,
-                    "status": "won",
-                }
-                package_plan["packages"].append(package)
+                    package = {
+                        "stripe_subscription_item_id": stripe_subscription_item_id,
+                        "stripe_price_id": price_id,
+                        "name": product_name,
+                        "price": price_value,
+                        "related_app": related_app,
+                        "type": type,
+                        "requires_onboarding": requires_onboarding,
+                        "status": "won",
+                    }
+                    package_plan["packages"].append(package)
 
-                customer_pk = request.GET.get("pk", None)
-                if customer_pk:
-                    owner = customer.user
-                else:
-                    owner = customer.rep.user
+                    customer_pk = request.GET.get("pk", None)
+                    if customer_pk:
+                        owner = customer.user
+                    else:
+                        owner = customer.rep.user
+                except Exception as e:
+                    print('FAILE WHILE CRETING PRODUCTS: ', e)
 
-                # Create the service packages
-                print('\n\nO_Ocreating the service packages: ', package_plan)
-                create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
+            # Create the service packages
+            print('\n\n@@ O_Ocreating the service packages: ', package_plan)
+            create_service_packages(customer, package_plan, True, False, subscription_id, owner=owner)
 
             return Response(
                 status=status.HTTP_200_OK,

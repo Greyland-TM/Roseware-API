@@ -105,6 +105,7 @@ def sync_pipedrive(pk, action, type, owner_pk, attachment_id=None):
 
             # *** Create New Pipedrive Product in Deal ***
             if action == 'create':
+                print(f'\n++Checking service package before create_pipedrive_service_package: {service_package}')
                 was_deal_created = create_pipedrive_service_package(service_package)
                 if not was_deal_created:
                     logger.error('*** Failed to attach package to Pipedrive Product from deal ***')

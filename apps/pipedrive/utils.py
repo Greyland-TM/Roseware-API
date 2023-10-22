@@ -961,7 +961,7 @@ def create_pipedrive_service_package(service_package):
             response = requests.delete(url, json=body, headers=headers)
 
         data = response.json()
-        print('\nChecking response data: ', data, '\n')
+        print('\nChecking response data: ', data, ' - create_pipedrive_service_package\n')
         deal_created = data["success"]
 
         if not deal_created:

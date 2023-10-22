@@ -256,26 +256,26 @@ def create_service_packages(
         print("checking owner: ", owner)
         print("checking package_details: ", package_details["packages"])
         # Get the package template
-        packages = package_details["packages"]
-        for package in packages:
-            related_app = package["related_app"].lower()
-            type = package["type"].lower()
-            package_template, _ = ServicePackageTemplate.objects.get_or_create(
-                stripe_product_id=package.get("stripe_product_id", None),
-                defaults={
-                    "type": type,
-                    "owner": owner,
-                    "requires_onboarding": True,
-                    "name": package["name"],
-                    "cost": package["price"],
-                },
-            )
-            print('get or create ran: ', _, ', ', package_template)
+        # packages = package_details["packages"]
+        # for package in packages:
+        #     related_app = package["related_app"].lower()
+        #     type = package["type"].lower()
+        #     package_template, _ = ServicePackageTemplate.objects.get_or_create(
+        #         stripe_product_id=package.get("stripe_product_id", None), # I think this is just getting the same package template over and over
+        #         defaults={
+        #             "type": type,
+        #             "owner": owner,
+        #             "requires_onboarding": True,
+        #             "name": package["name"],
+        #             "cost": package["price"],
+        #         },
+        #     )
+        #     print('get or create ran: ', _, ', ', package_template)
 
         
         # Create a new Package Plan
-        print('\n\n^_^GETTING OR CREATING PACKAGE PLAN 1')
-        print(package_details)
+        # print('\n\n^_^GETTING OR CREATING PACKAGE PLAN 1')
+        # print(package_details)
         # import time
         # time.sleep(5)
         package_plan, _ = PackagePlan.objects.get_or_create(
@@ -290,8 +290,8 @@ def create_service_packages(
                 "stripe_subscription_id": package_details.get("stripe_subscription_id", None),
             }
         )
-        print('\n\n^_^get or create package plan ran: ', _, ', ', package_plan)
-        print('HERE package plan pipedrive id: ', package_plan.pipedrive_id)
+        # print('\n\n^_^get or create package plan ran: ', _, ', ', package_plan)
+        # print('HERE package plan pipedrive id: ', package_plan.pipedrive_id)
         # package_plan.stripe_subscription_id = subscription_id
         # package_plan.save(should_sync_pipedrive=False, should_sync_stripe=False)
         # rep = Employee.objects.all().first()
@@ -310,12 +310,15 @@ def create_service_packages(
         stripe_subscription.save(should_sync_stripe=False)
 
         # Create a new Service Package
-        for package in packages:
+        print('\n\n%%CREATING PACKAGE PLANS NOW')
+        for package in package_details["packages"]:
+            print(f'package: {package}, name: {package["name"]}')
             related_app = package["related_app"].lower()
             type = package["type"].lower()
             package_template = ServicePackageTemplate.objects.filter(
                 name=package["name"]
             ).first()
+            print(f'\npackage_template: {package_template}')
             service_package = ServicePackage(
                 customer=customer,
                 package_template=package_template,
@@ -332,7 +335,7 @@ def create_service_packages(
                 stripe_subscription_item_id=package.get("stripe_subscription_item_id", None),
                 stripe_subscription_item_price_id=package.get("stripe_price_id", None),
             )
-
+            print(f'\n!!service_package: {service_package}, cost: {service_package.cost}, package_template: {package_template}')
             service_package.save(
                 should_sync_pipedrive=should_sync_pipedrive,
                 should_sync_stripe=should_sync_stripe,
