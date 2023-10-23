@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from apps.accounts.models import CustomUser
 from django.db import models
 import datetime
 
@@ -96,5 +96,5 @@ class BlogArticle(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=False, blank=False)
     image = models.ImageField(upload_to='blog_images/', null=False, blank=False)
     category = models.CharField(default="", max_length=100, null=False, blank=False, choices=CATEGORY_CHOICES)
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="author", null=True, blank=True)
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="author", null=True, blank=True)
     body = models.TextField(default="", null=False, blank=False)

@@ -9,9 +9,9 @@ from dateutil.relativedelta import relativedelta
 from dateutil.rrule import WEEKLY, rrule
 from pytz import timezone
 from .models import DailyContent, Day, MarketingSchedule, WeeklyTopic, SocialPost
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 def create_monthly_marketing_schedule(customer):

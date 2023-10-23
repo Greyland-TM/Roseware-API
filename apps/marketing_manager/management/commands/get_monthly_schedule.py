@@ -3,9 +3,9 @@ from django.core.management.base import BaseCommand
 from apps.accounts.models import Customer
 from apps.marketing_manager.models import WeeklyTopic
 from apps.marketing_manager.utils import create_monthly_marketing_schedule
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):

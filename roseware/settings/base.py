@@ -2,10 +2,12 @@
 Django settings for Roseware API
 """
 
-import os, logging
+import os
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+
+load_dotenv()
 
 # Get the environment variables
 # Import development or production settings based on the environment
@@ -15,14 +17,14 @@ if os.environ.get("DJANGO_ENV") == "development":
     rabbitmq_username = os.environ.get("RABBITMQ_USER")
     rabbitmq_password = os.environ.get("RABBITMQ_PASSWORD")
     CELERY_BROKER_URL = (
-        f"amqp://{rabbitmq_username}:{rabbitmq_password}@localhost:5672/myvhost"
+        f"amqp://{rabbitmq_username}:{rabbitmq_password}@rabbitmq-dev:5672/roseware"
     )
 else:
     from roseware.settings.production import *
 
     CELERY_BROKER_URL = os.environ.get("CLOUDAMQP_URL")
 
-load_dotenv()
+
 
 # Set the project base directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,7 +36,6 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 CORS_ORIGIN_ALLOW_ALL = True
 CSRF_TRUSTED_ORIGINS = [os.environ.get("BACKEND_URL")]
-
 
 # Application definition
 INSTALLED_APPS = [
@@ -57,6 +58,8 @@ INSTALLED_APPS = [
     "apps.marketing_manager",
     "storages",
 ]
+
+AUTH_USER_MODEL = "accounts.CustomUser"
 
 AUTHENTICATION_BACKENDS = [
     # 'apps.accounts.custom_auth_backend.CustomModelBackend',
@@ -178,60 +181,56 @@ AWS_S3_REGION_NAME = "us-west-2"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 AWS_DEFAULT_ACL = None
 
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": False,
-#     "formatters": {
-#         "verbose": {
-#             "format": "{asctime} {levelname} {module} {message}",
-#             "style": "{",
-#         },
-#         "simple": {
-#             "format": "{module}: {message}",
-#             "style": "{",
-#         },
-#     },
-#     "handlers": {
-#         "file": {
-#             "class": "logging.FileHandler",
-#             "filename": "logs/debug.log",
-#             "level": "DEBUG",
-#             "formatter": "verbose",
-#         },
-#         "console": {
-#             "class": "logging.StreamHandler",
-#             "level": "INFO",
-#             "formatter": "simple",
-#         },
-#     },
-#     "loggers": {
-#         "": {
-#             "level": "INFO",
-#             "handlers": ["console"],
-#         },
-#         "django": {
-#             "handlers": ["file"],
-#             "level": "DEBUG",
-#             "propagate": False,
-#         },
-#         "django.server": {
-#             "handlers": ["console"],
-#             "level": "INFO",
-#             "propagate": False,
-#         },
-#     },
-# }
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] [{module}] [{levelname}]: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "logs/debug.log",
+            "level": "DEBUG",
+            "formatter": "verbose",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "": {
+            "level": "INFO",
+            "handlers": ["console"],
+        },
+        "django": {
+            "handlers": ["file"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
 
-# if not os.path.exists("logs"):
-#     # Remove the 'file' handler from the LOGGING dictionary
-#     LOGGING["handlers"].pop("file", None)
-#     LOGGING["loggers"].pop("django", None)
+if not os.path.exists("logs"):
+    # Remove the 'file' handler from the LOGGING dictionary
+    LOGGING["handlers"].pop("file", None)
+    LOGGING["loggers"].pop("django", None)
 
-# else:
-#     # Only if logs directory exists, add the 'file' handler to LOGGING
-#     LOGGING["handlers"]["file"] = {
-#         "class": "logging.FileHandler",
-#         "filename": "logs/debug.log",
-#         "level": "DEBUG",
-#         "formatter": "verbose",
-#     }
+else:
+    # Only if logs directory exists, add the debug 'file' handler to LOGGING
+    LOGGING["handlers"]["file"] = {
+        "class": "logging.FileHandler",
+        "filename": "logs/debug.log",
+        "level": "DEBUG",
+        "formatter": "verbose",
+    }

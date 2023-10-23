@@ -11,9 +11,9 @@ class WebhookAuthentication(BasicAuthentication):
 
         if userid == http_auth_user and password == http_auth_pass:
             try:
-                user = get_user_model().objects.get(username=userid)
+                user = get_user_model().objects.get(email=userid)
                 return (user, None)
             except get_user_model().DoesNotExist:
-                raise AuthenticationFailed('Invalid username/password.')
+                raise AuthenticationFailed('Invalid email/password.')
         else:
-            raise AuthenticationFailed('Invalid username/password.')
+            raise AuthenticationFailed('Invalid email/password.')

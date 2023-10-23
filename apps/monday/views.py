@@ -4,12 +4,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from apps.accounts.custom_auth import CustomAuthentication
-from roseware.utils import make_logger
+import logging
 # from apps.accounts.models import Customer, Employee
 import requests
 import os
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 class ProcessModayWebhook(APIView):

@@ -1,8 +1,8 @@
 from django.core.management.base import BaseCommand
 from apps.monday.tasks import save_to_monday
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
