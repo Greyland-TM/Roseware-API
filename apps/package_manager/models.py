@@ -19,17 +19,6 @@ logger = logging.getLogger(__name__)
 class ServicePackageTemplate(models.Model):
     """This model will be used to store the templates for posts."""
 
-    # TYPE_CHOICES = (
-    #     ("webpage", "Webpage"),
-    #     ("social", "Social"),
-    #     ("blog", "Blog"),
-    #     ("ads", "Ads"), # TODO - Add this later - Probably just a part of the Duda app
-    # )
-    # RELATED_APP_CHOICES = (
-    #     ("duda", "Duda"),
-    #     ("markit", "Markit"),
-    #     ("ayrshare", "Ayrshare"),
-    # )
     ACTION_CHOICES = (("create", "Create"),)
 
     owner = models.ForeignKey(
@@ -132,7 +121,15 @@ class PackagePlan(models.Model):
 
         is_new = self._state.adding
 
+        # There are situations where a pipedrive or stripe id is being overwritten with None
+        # So here I want to only set the pipedrive_id and stripe_subscription_id if they are not None
+        # pipedrive_id = self.pipedrive_id 
+        stripe_subscription_id = self.stripe_subscription_id
+
         super(PackagePlan, self).save(*args, **kwargs)
+
+        if self.stripe_subscription_id is None:
+            self.stripe_subscription_id = stripe_subscription_id
 
         if is_new:
             create_package_plan_sync(
@@ -249,8 +246,9 @@ class ServicePackage(models.Model):
     ):
         from .utils import delete_service_package_sync
         
-
-        piperive_id = self.pipedrive_product_attachment_id
+        
+        attachment_id = self.pipedrive_product_attachment_id
+        piperive_id = self.package_plan.pipedrive_id
         stripe_subscription_item_id = self.package_plan.stripe_subscription_id
         owner = self.package_plan.owner
         customer = self.customer
@@ -262,6 +260,7 @@ class ServicePackage(models.Model):
             should_sync_pipedrive,
             should_sync_stripe,
             owner.pk,
+            attachment_id
         )
 
         # If the pipedrive-stripe sync was deleted set the customer's sync status to false

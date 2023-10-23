@@ -41,6 +41,7 @@ def create_package_template_sync(
                 "owner_pk": owner
             }
         )
+
     if should_sync_stripe:
         logger.info("Creating package template in Stripe... (Check celery terminal)")
         sync_stripe.apply(
@@ -101,6 +102,7 @@ def create_package_plan_sync(
 
     # Get the sync platform
     sync_platform = package_plan.last_synced_from
+
     # Check for an ongoing sync
     update_or_create_ongoing_sync(
         type="package_plan",
@@ -111,7 +113,7 @@ def create_package_plan_sync(
         owner=owner,
     )
 
-    # Create the package plan
+    # Create the package planc
     if should_sync_pipedrive:
         logger.info("Creating package plan in Pipedrive... (Check celery terminal)")
         sync_pipedrive.apply(
@@ -175,17 +177,6 @@ def create_service_package_sync(
     if not should_sync_pipedrive and not should_sync_stripe:
         return
 
-    # Get the sync platform
-    sync_platform = package.last_synced_from
-
-    # Check for an ongoing sync
-    # update_or_create_ongoing_sync(
-    # type='service_package',
-    # action='create',
-    # should_sync_stripe=should_sync_stripe,
-    # should_sync_pipedrive=should_sync_pipedrive,
-    # sync_platform=sync_platform
-    # )
 
     # # Create the service package
     if should_sync_pipedrive:
@@ -193,10 +184,17 @@ def create_service_package_sync(
         sync_pipedrive.apply(
             kwargs={"pk": package.pk, "action": "create", "type": "service_package", "owner_pk": owner}
         )
+
+    # Update the stripe subscription with the new service package
     if should_sync_stripe:
+        subscription_id = package.package_plan.stripe_subscription_id
+        subscription_pk = StripeSubscription.objects.filter(
+            stripe_subscription_id=subscription_id
+        ).first().pk
         logger.info("Creating service package in Stripe... (Check celery terminal)")
+        print('subscription_pk: ', subscription_pk)
         sync_stripe.apply(
-            kwargs={"pk": package.pk, "action": "create", "type": "service_package"}
+            kwargs={"pk": subscription_pk, "action": "update", "type": "subscription"}
         )
 
 
@@ -228,16 +226,19 @@ def update_service_package_sync(
 
 
 def delete_service_package_sync(
-    pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner
+    pipedrive_id, stripe_id, should_sync_pipedrive, should_sync_stripe, owner, attachment_id=None
 ):
     # Delete the service package
-    logger.info("Deleting service package... ")
+    # logger.info("Deleting service package - delete_service_package_sync util ")
     if should_sync_stripe:
         logger.info("Deleting service package in Stripe... (Check celery terminal)")
-        sync_stripe.delay(stripe_id, "update", "subscription")
+        subscription_pk = StripeSubscription.objects.filter(
+            stripe_subscription_id=stripe_id
+        ).first().pk
+        sync_stripe.delay(subscription_pk, "update", "subscription")
     if should_sync_pipedrive:
         logger.info("Deleting service package in Pipedrive... (Check celery terminal)")
-        sync_pipedrive.delay(pipedrive_id, "delete", "package", owner)
+        sync_pipedrive.delay(pipedrive_id, "delete", "service_package", owner, attachment_id=attachment_id)
 
 
 # TODO - Create a new package for a customer.
@@ -247,39 +248,19 @@ def create_service_packages(
     customer, package_details, should_sync_pipedrive, should_sync_stripe, subscription_id, owner
 ):
     try:
-        # Get the package template
-        packages = package_details["packages"]
-        for package in packages:
-            related_app = package["related_app"].lower()
-            type = package["type"].lower()
-            package_template, _ = ServicePackageTemplate.objects.get_or_create(
-                owner=owner,
-                related_app=related_app,
-                type=type,
-                defaults={
-                    "requires_onboarding": True,
-                    "name": package["name"],
-                    "cost": package["price"],
-                },
-            )
-
-        # Create a new Package Plan
-        package_plan = PackagePlan.objects.create(
-            owner=owner,
-            customer=customer,
-            billing_cycle=package_details["billing_cycle"],
-            status=package_details["status"],
-            name=f"{customer.first_name} {customer.last_name} Deal",
-            description=package_details["description"],
-            stripe_subscription_id=package_details.get("stripe_subscription_id", None),
+        package_plan, _ = PackagePlan.objects.get_or_create(
+            stripe_subscription_id=subscription_id,
+            defaults={
+                "owner": owner,
+                "customer": customer,
+                "billing_cycle": package_details["billing_cycle"],
+                "status": package_details["status"],
+                "name": f"{customer.first_name} {customer.last_name} Deal",
+                "description": package_details["description"],
+                "stripe_subscription_id": package_details.get("stripe_subscription_id", None),
+            }
         )
-        # rep = Employee.objects.all().first()
-        # if customer_pk is not None:
-        #     customer = Customer.objects.get(pk=customer_pk)
-        #     owner = customer.user
-        # else:
-        #     owner = rep.user
-
+        
         stripe_subscription = StripeSubscription(
             owner=owner,
             stripe_subscription_id=subscription_id,
@@ -289,9 +270,7 @@ def create_service_packages(
         stripe_subscription.save(should_sync_stripe=False)
 
         # Create a new Service Package
-        for package in packages:
-            related_app = package["related_app"].lower()
-            type = package["type"].lower()
+        for package in package_details["packages"]:
             package_template = ServicePackageTemplate.objects.filter(
                 name=package["name"]
             ).first()
@@ -308,10 +287,9 @@ def create_service_packages(
                 next_scheduled=None,
                 action=package_template.action,
                 requires_onboarding=package_template.requires_onboarding,
-                stripe_subscription_item_id=package.get("stripe_product_id", None),
+                stripe_subscription_item_id=package.get("stripe_subscription_item_id", None),
                 stripe_subscription_item_price_id=package.get("stripe_price_id", None),
             )
-
             service_package.save(
                 should_sync_pipedrive=should_sync_pipedrive,
                 should_sync_stripe=should_sync_stripe,
