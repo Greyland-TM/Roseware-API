@@ -1,13 +1,12 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.contrib.auth.models import User
+from apps.accounts.models import CustomUser
 
 class LoginTests(APITestCase):
     def setUp(self):
         self.url = reverse('login')
-        self.user = User.objects.create_user(
-            username='alhoff@gmail.com',
+        self.user = CustomUser.objects.create_user(
             email='alhoff@gmail.com',
             password='greycy9391'
         )

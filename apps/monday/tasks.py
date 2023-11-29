@@ -4,7 +4,7 @@
 # ********************************
 
 from roseware.celery import app
-from roseware.utils import make_logger
+import logging
 
 from apps.monday.utils import (
     get_leads_board_columns,
@@ -16,7 +16,7 @@ import requests
 import json
 import os
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 @app.task

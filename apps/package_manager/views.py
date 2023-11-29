@@ -12,9 +12,9 @@ from .serializers import (
     ServicePackageSerializer,
     ServicePackageTemplateSerializer,
 )
-from roseware.utils import make_logger
+import logging
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 class ServicePackageTemplateView(APIView):

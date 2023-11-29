@@ -2,8 +2,8 @@ from roseware.celery import app
 from apps.accounts.models import Customer
 from apps.package_manager.models import ServicePackageTemplate, PackagePlan, ServicePackage
 from .models import StripePaymentDetails, StripeSubscription
-from roseware.utils import make_logger
-from .utils import (
+import logging
+from .utils.celery_utils import (
     create_stripe_customer,
     update_stripe_customer,
     delete_stripe_customer,
@@ -18,7 +18,7 @@ from .utils import (
     delete_stripe_subscription,
 )
 
-logger = make_logger(__name__, stream=True)
+logger = logging.getLogger(__name__)
 
 
 @app.task(default_retry_delay=10, max_retries=3, autoretry_for=(Exception, ))
@@ -74,37 +74,38 @@ def sync_stripe(pk, action, type):
                     logger.error('*** Failed to delete product in Stripe ***')
                 return was_product_deleted
 
-        if type == 'payment_details':
+        # TODO - I think this is depricated now, but I don't want to delete it until I am sure
+        # if type == 'payment_details':
 
-            # *** Create New Stripe Payment Method ***
-            if action == 'create':
-                payment_details = StripePaymentDetails.objects.filter(pk=pk).first()
-                was_payment_method_created = create_stripe_payment_method(payment_details)
-                if not was_payment_method_created:
-                    logger.error('*** Failed to create payment method in Stripe ***')
-                return was_payment_method_created
+        #     # *** Create New Stripe Payment Method ***
+        #     if action == 'create':
+        #         payment_details = StripePaymentDetails.objects.filter(pk=pk).first()
+        #         was_payment_method_created = create_stripe_payment_method(payment_details, payment_details.owner)
+        #         if not was_payment_method_created:
+        #             logger.error('*** Failed to create payment method in Stripe ***')
+        #         return was_payment_method_created
 
-            # *** Update Existing Stripe Payment Method ***
-            elif action == 'update':
-                payment_details = StripePaymentDetails.objects.filter(pk=pk).first()
-                was_payment_method_updated = update_stripe_payment_method(payment_details)
-                if not was_payment_method_updated:
-                    logger.error('*** Failed to update payment method in Stripe ***')
-                return was_payment_method_updated
+        #     # *** Update Existing Stripe Payment Method ***
+        #     elif action == 'update':
+        #         payment_details = StripePaymentDetails.objects.filter(pk=pk).first()
+        #         was_payment_method_updated = update_stripe_payment_method(payment_details)
+        #         if not was_payment_method_updated:
+        #             logger.error('*** Failed to update payment method in Stripe ***')
+        #         return was_payment_method_updated
 
-            # *** Delete Existing Stripe Payment Method ***
-            elif action == 'delete':
-                was_payment_method_deleted = delete_stripe_payment_method(pk)
-                if not was_payment_method_deleted:
-                    logger.error('*** Failed to delete payment method in Stripe ***')
-                return was_payment_method_deleted
+        #     # *** Delete Existing Stripe Payment Method ***
+        #     elif action == 'delete':
+        #         was_payment_method_deleted = delete_stripe_payment_method(pk)
+        #         if not was_payment_method_deleted:
+        #             logger.error('*** Failed to delete payment method in Stripe ***')
+        #         return was_payment_method_deleted
 
         if type == 'subscription':
 
             # *** Create New Stripe Subscription ***
             if action == 'create':
                 subscription = StripeSubscription.objects.filter(pk=pk).first()
-                was_subscription_created = create_stripe_subscription(subscription)
+                was_subscription_created = create_stripe_subscription(subscription, subscription.owner)
                 if not was_subscription_created:
                     logger.error('*** Failed to create subscription in Stripe ***')
                 return was_subscription_created
@@ -114,7 +115,7 @@ def sync_stripe(pk, action, type):
                 logger.info(f'Updating Stripe Subscription: {pk}')
                 subscription = StripeSubscription.objects.filter(pk=pk).first()
                 logger.info(f'Subscription: {subscription}')
-                was_subscription_updated = update_stripe_subscription(subscription)
+                was_subscription_updated = update_stripe_subscription(subscription, subscription.owner)
                 if not was_subscription_updated:
                     logger.error('*** Failed to update subscription in Stripe ***')
                 return was_subscription_updated

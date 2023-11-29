@@ -34,6 +34,8 @@ aws-secrets = "*"
 django-aws-secrets-manager = "*"
 django-redis = "*"
 django-phonenumber-field = {extras = [ "phonenumberslite",], version = "*"}
+icecream = "*"
+async-timeout = "*"
 
 [dev-packages]
 flake8 = "*"

@@ -93,7 +93,7 @@ This way we can store our users access and refresh tokens (probably in aws secre
 - Next you need to create a admin user for yourself
 
   1: In your normal django terminal, navigated to the root of this app,
-  Run the command `pipenv shell && python manage.py createsuperuser`
+  Run the command `pipenv shell && python manage.py createcustomuser`
   2: Follow the text propts in the terminal.
   3: Use something you will remember easily.
 
@@ -105,7 +105,7 @@ This way we can store our users access and refresh tokens (probably in aws secre
 
   1: Run the command `pipenv shell && python manage.py runserver`
   2: In your browser go to `http://localhost:8000/admin/`
-  3: Login with your super user credentials from the last step.
+  3: Login with your user credentials from the last step.
 
 - Next you just need to set up the front end.
 
@@ -139,7 +139,7 @@ This way we can store our users access and refresh tokens (probably in aws secre
 # SETUP WEBHOOKS
 
 - You need to set up webhooks for all of the platform syncing to work.
-- To test the webhooks you can use ngrok. run `./ngrok http 8000` the copy the url and put in in the .env variable called `BACKEND_URL=url`
+- To test the webhooks you can use ngrok. run `ngrok http 8000 --host-header=rewerite` then copy the url and put in in the .env variable called `BACKEND_URL={url}`
 - Once that is set, you can run the commands `python manage.py create_pipedrive_webhooks` and `python manage.py create_stripe_webhooks`.
 - After that all the platforms should be synced and ready to go.
 
@@ -217,42 +217,27 @@ MONDAY_PACKAGES_BOARD_ID=
 
 # **\*\*\*\***\*\*\***\*\*\*\***
 
-# Logging
+_DOCKER_
 
-The logging system in this application is designed to offer flexibility and detailed tracking of events both during development and in production. It supports logging to both the console and files, allowing for easier debugging and monitoring.
+To install the api, run: `docker compose up --build`.
 
-_Initialization_
+You will need to get into PGAdmin and connect the db. Log in with the `PGADMIN_MAIL` and `PGADMIN_PW` you specified in your .env file.
+The server needs to be registered to the `DB_HOST` you specified in your .env file, and a database needs to be created with your `DB_NAME`.
 
-You can create a logger by importing from `roseware.utils` and then calling the `make_logger()` function. This function accepts several parameters:
+Then, login into Rabbitmq's management dashboard with username and password `guest`.
+You will need to create a new user with the username and password you specified in your .env file and an admin tag.
+Create a new virtual host with the name `roseware` and grant your user access to it.
 
-    name: A string representing the name of the logger instance. You can for the most part use `__name__` for this to name it after the module it's called in.
-    stream: A boolean value to determine whether to log to the console or not. Set to True to enable console logging (default is false).
-    file_name: The path to the log file for general logs (default is "logs/general.log").
-    log_level: The logging level to set (default is logging.DEBUG).
-    set_propagate: A boolean to determine whether to propagate the log to higher-level loggers (default is True).
+Setting up your Ngrok tunnel can be done by obtaining an auth token from Ngrok and copying it into your .env file as `NGROK_AUTH={your-auth-token}`.
+After that, go to `localhost:4040` and copy the tunnel URL found there into your .env file as `BACKEND_URL={your-tunnel-url}`.
+You may need to restart django if it's running for this to work. Then you should be able to go to that URL on any browser and see django. 
+If you do not have a paid Ngrok plan, you will need to do this step everytime you boot the Ngrok container up as ngrok generates a random URL each time it starts.
 
-Example:
+To get into the shell of a container and execute commands run: `docker exec -it {container name} {command}`
+For example, to create a new admin user, run: `docker exec -it django python manage.py createcustomuser`
 
-`logger = make_logger(__name__, stream=True)`
+Run `docker logs -f django` to tail the normal django terminal
 
-This will create a logger that logs to both the console and the specified files.
-
-_Logging Messages_
-
-You can log messages using the standard logging methods, such as logger.info, logger.debug, etc.
-
-`logger.debug("This is an debug message")`
-`logger.info("This is an info message")`
-`logger.warning("This is an warning message")`
-`logger.error("This is an error message")`
-`logger.critical("This is an critical message")`
-
-_Log Files_
-
-Three log files are created in the logs directory:
-
-    logs/general.log: This file contains general logs depending on the log level set.
-    logs/errors.log: This file specifically logs error-level messages.
-    logs/debug.log: This file is used by Django for debug-level logging.
+For webhooks run`docker exec -it django python manage.py create_pipedrive_webhooks` & `docker exec -it django python manage.py create_stripe_webhooks`
 
 # **\*\*\*\***\*\*\***\*\*\*\***
